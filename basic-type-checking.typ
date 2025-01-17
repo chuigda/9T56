@@ -11,7 +11,7 @@
 
 #show link: set text(fill: rgb(0, 127, 255))
 #show math.equation: it => {
-  show regex("if|let|then|else|int|bool|list|fun|pred|succ|null|length|hd|tl|true|false|zero|pair|fst|snd|nil|cons"): set text(weight: "bold")
+  show regex("if|let|then|else|int|bool|list|fun|pred|succ|null|length|hd|tl|true|false|zero|pair|fst|snd|nil|cons|rec|in"): set text(weight: "bold")
   it
 }
 #show math.equation.where(block: true): set block(breakable: true)
@@ -109,7 +109,7 @@ let rec length =
 #let arena = "b1"
 #let l(numbering) = [
   #set text(style: "italic", font: "Noto Serif", size: 9pt)
-  #text(str(numbering) + ".", fill: rgb(0, 127, 255), style: "italic") #label(arena + "." + str(numbering))
+  #text("[" + str(numbering) + "]", fill: rgb(0, 127, 255), style: "italic") #label(arena + "." + str(numbering))
 ]
 #let j(numbering) = [
   #set text(style: "italic", font: "Noto Serif", size: 9pt)
@@ -222,13 +222,13 @@ $
 + 在函数抽象 `fun x. e` 中，创建一个新的上下文而，为 `x` 赋予一个全新的类型变量，然后在这个上下文中推断 `e` 的类型。
 + 在函数应用 `f a` 中，将 `f` 的类型与 $A -> beta$ 归一化，其中 $A$ 是 `a` 的类型，而 $beta$ 是一个全新的类型变量。也就是说，`f` 必须具有函数类型，并且其定义域可以和 $A$ 归一化；整个函数应用的类型是 $beta$（或是其任何一个实例化）。
 
-要描述 `let` 表达式及其引入变量的类型检查，我们需要引入_泛化（generic）_类型变量记号。考虑以下表达式：
+要描述 `let` 表达式及其引入变量的类型检查，我们需要引入_泛型（generic）_类型变量记号。考虑以下表达式：
 
 #raw("fun f. pair (f 3) (f true)", lang: "ml") #ex("Ex1")
 
 在 Milner 的类型系统中，这个表达式无法被类型检查，而上述算法会给出一个类型错误。事实上，`f` 的第一次出现（`f 3`）先给出 `f` 的类型是 $"int" -> beta$，随后第二次出现（`f true`）又给出了一个类型 $"bool" -> beta$，而它无法与第一个类型归一化。
 
-像 `f` 这样由 `lambda` 引入的标识符，它的类型变量是_非泛化（non-generic）_的。因为就像这个例子中所展现的，类型变量在 `f` 出现的所有地方共享，并且他们的实例可能会有冲突。
+像 `f` 这样由 `lambda` 引入的标识符，它的类型变量是_非泛型（non-generic）_的。因为就像这个例子中所展现的，类型变量在 `f` 出现的所有地方共享，并且他们的实例可能会有冲突。
 
 你可以试着给表达式 #jex("Ex1") 一个类型，例如你可以试着给它 $(alpha times beta) -> (beta times beta)$。这在 `f (fun a. 0)` 这样的场景下是可以的，它能正常得到结果 `(pair 0 0)`。然而这种类型系统总的来说是_不健全（unsound）_的：例如 `succ` 的类型可以与 $alpha -> beta$ 匹配，因而会被 `f` 接受，并被错误地应用到 `true` 上。Milner 的类型系统有一些健全的扩展能处理 #jex("Ex1") 这样的表达式，但它们不在讨论本文的范围内。
 
@@ -238,21 +238,21 @@ $
 
 必须找到一种办法来为上述表达式标定类型，否则多态函数就没法在同一个上下文里被应用到不同的类型上，多态也就没有用了。好在我们这里的局面比 #jex("Ex1") 要好，因为我们确切地知道 `f` 是什么，并且可以利用这一信息来分别处理它的两次出现。
 
-在这个例子中，`f` 具有类型 $alpha -> alpha$；像 $alpha$ 这样出现在 `let` 引入的标识符的类型（并且不在_包裹_的 `lambda` 引入的标识符类型中出现）的类型变量，我们称它为_泛化（generic）_的。在 `let` 引入的标识符的不同实例化中，泛化的类型变量可以有不同的值。实现时，可以为 `f` 的每次出现创建一个 `f` 的拷贝。
+在这个例子中，`f` 具有类型 $alpha -> alpha$；像 $alpha$ 这样出现在 `let` 引入的标识符的类型（并且不在外围的 `lambda` 引入的标识符类型中出现）的类型变量，我们称它为_泛型（generic）_的。在 `let` 引入的标识符的不同实例化中，泛型的类型变量可以有不同的值。实现时，可以为 `f` 的每次出现创建一个 `f` 的拷贝。
 
-不过，在复制一个类型的时候，我们必须小心，不要复制非泛化的类型变量。非泛化的类型变量必须被共享。以下表达式和 #jex("Ex1") 一样是不合法的，因为 `g` 的类型是非泛化的，而这个类型会被传播到 `f` 中：
+不过，在复制一个类型的时候，我们必须小心，不要复制非泛型的类型变量。非泛型的类型变量必须被共享。以下表达式和 #jex("Ex1") 一样是不合法的，因为 `g` 的类型是非泛型的，而这个类型会被传播到 `f` 中：
 
 #raw("fun g. let f = g\nin pair (f 3) (f true)", lang: "ml") #ex("Ex3")
 
 同样地，你不能给这个表达式一个像 $(alpha -> beta) -> (beta times beta)$ 这样的类型（考虑对这个表达式应用 `succ`）。
 
-泛化变量的定义是：
+泛型变量的定义是：
 
-表达式 `e` 的类型中的一个类型变量是泛化的，当且仅当它不出现在任何包裹着表达式 `e` 的 `lambda` 表达式的绑定器中。（_原文： A type variable occurring in the type of an expression `e` is generic iff it does not occur in the type of the binder of any lambda-expression enclosing `e`._）
+表达式 `e` 的类型中的一个类型变量是泛型的，当且仅当它不出现在任何表达式 `e` 外围的 `lambda` 表达式的绑定器中。（_原文： A type variable occurring in the type of an expression `e` is generic iff it does not occur in the type of the binder of any lambda-expression enclosing `e`._）
 
-注意一个在 lambda 表达式内部非泛化的类型变量，在表达式外部可能是泛化的。例如在 #jex("Ex2") 中，`a` 的类型 $alpha$ 是非泛化的，而 `f` 的类型 $alpha -> alpha$ 是泛化的。
+注意一个在 lambda 表达式内部非泛型的类型变量，在表达式外部可能是泛型的。例如在 #jex("Ex2") 中，`a` 的类型 $alpha$ 是非泛型的，而 `f` 的类型 $alpha -> alpha$ 是泛型的。
 
-要确定一个变量是否是泛化的，我们随时维护一个非泛化变量的列表：若类型变量不在这个列表中，则它是泛化的。每当进入 lambda 表达式时扩充该列表；而每当离开 lambda 表达式时恢复原先的列表，这样 lambda 表达式引入的类型变量就又泛化了。当复制一个类型的时候，我们必须只赋值泛化的变量，非泛化的变量则应该被共享。在将非泛化类型变量归一化到一个项目（term）上时，该项目中包含的所有类型变量都会变为非泛化的。
+要确定一个变量是否是泛型的，我们随时维护一个非泛型变量的列表：若类型变量不在这个列表中，则它是泛型的。每当进入 lambda 表达式时扩充该列表；而每当离开 lambda 表达式时恢复原先的列表，这样 lambda 表达式引入的类型变量就又泛型了。当复制一个类型的时候，我们必须只赋值泛型的变量，非泛型的变量则应该被共享。在将非泛型类型变量归一化到一个项目（term）上时，该项目中包含的所有类型变量都会变为非泛型的。
 
 最后我们需要考虑递归定义：
 
@@ -268,10 +268,10 @@ let f = Y fun f. ... f ...
 in ... f ...
 ```
 
-显然可知，在递归定义中的 `f` 的实例（中的类型变量）必须是非泛化的，而在 `in` 中的实例是泛化的。
+显然可知，在递归定义中的 `f` 的实例（中的类型变量）必须是非泛型的，而在 `in` 中的实例是泛型的。
 
 5. 要对 `let` 作类型检查，我们首先检查它的声明部分，获得一个包含标识符与类型的环境，这个环境之后会用于 `let` _体（body）_的检查
-6. 检查 `let` 的声明部分时，检查其中所有的定义 $x_i = t_i$，每个定义会在环境中引入一个序对 <$x_i$, $T_i$>，其中 $T_i$ 是 $t_i$ 的类型。对于存在（互）递归的声明 $x_i = t_i$，我们首先为所有要定义的 $x_i$ 创建一个包含序对 <$x_i$, $alpha_i$> 的环境，这里 $alpha_i$ 是非泛化的类型变量（它们在进入声明作用域的时候被插入到非泛化变量的列表中）。所有的 $t_i$ 在这个环境中进行类型检查，然后再将 $T_i$ 与 $alpha_i$（或是其实例化）进行匹配。
+6. 检查 `let` 的声明部分时，检查其中所有的定义 $x_i = t_i$，每个定义会在环境中引入一个序对 <$x_i$, $T_i$>，其中 $T_i$ 是 $t_i$ 的类型。对于存在（互）递归的声明 $x_i = t_i$，我们首先为所有要定义的 $x_i$ 创建一个包含序对 <$x_i$, $alpha_i$> 的环境，这里 $alpha_i$ 是非泛型的类型变量（它们在进入声明作用域的时候被插入到非泛型变量的列表中）。所有的 $t_i$ 在这个环境中进行类型检查，然后再将 $T_i$ 与 $alpha_i$（或是其实例化）进行匹配。
 
 = 关于模型、推理系统和算法的题外话
 有两种方法能形式化地描述类型的语义。最基本方式的是给设计一个数学模型，通常是将每个类型表达式映射到一组值（具有该类型的值）；这里的基本困难在于找到 $->$ 运算符的数学含义 #ref("Scott 76") #ref("Milner 78") #ref("MacQueen 84")。
@@ -289,57 +289,195 @@ in ... f ...
 下一节展示了一个用于多态类型检查的推理系统。现在我们对类型检查有了两种不同的视角：一种是“求解由类型方程组成的系统”，我们在前面已经看到了，而另一种就是“在形式系统中证明命题”，我们接下来会看到的。这两种视角之间可以互换，但后者提供了更多的见解，因为它将类型的语义和算法连接了起来。
 
 = 一个推理系统
+#let arena = "b2"
+
 在接下来的推理系统中，类型的语法被扩展为类型量词 $forall alpha. tau$. 在 Milner 的类型系统中，所有类型变量都是隐式地在顶层被量化的。例如，$alpha -> beta$ 实际上是 $forall alpha. forall beta. alpha -> beta$。然而，量词不能在类型表达式中嵌套。
 
-如果一个类型具有形式 $forall alpha_1. ... forall alpha_n. tau$，其中 $n >= 0$ 且 $tau$ 中没有量词，则我们说这个类型是_浅显（shallow）_的。我们的推理系统允许构造非浅显的类型，但不幸的是没有类型检查算法能被用在它们上面。因此，我们只关心浅显类型的推理。我们引入量词是因为这有助于解释泛化/非泛化类型变量的行为，它们可以与自由/量化类型变量完全对应。#ref("Damas 82") 中则提出了一种略微不同的推理系统，其中规避了非浅显的类型。
+如果一个类型具有形式 $forall alpha_1. ... forall alpha_n. tau$，其中 $n >= 0$ 且 $tau$ 中没有量词，则我们说这个类型是_浅显（shallow）_的。我们的推理系统允许构造非浅显的类型，但不幸的是没有类型检查算法能被用在它们上面。因此，我们只关心浅显类型的推理。我们引入量词是因为这有助于解释泛型/非泛型类型变量的行为，它们可以与自由/量化类型变量完全对应。#ref("Damas 82") 中则提出了一种略微不同的推理系统，其中规避了非浅显的类型。
 
-以下是推理规则集合。其中 [VAR] 是公理，其他规则都是推理。横线读作“蕴含”。记号 $A tack e : tau$ 表示给定一个假设集合 $A$，我们可以推导出表达式 $e$ 具有类型 $tau$。一个假设就是表达式 $e$ 中一个变量的类型，它可以是自由类型。记号 $A. x : tau$ 表示将集合 $A$ 与假设 $x : tau$ 取并集；记号 $tau[sigma\/alpha]$ 表示将 $tau$ 中 $alpha$ 的所有自由出现替换为 $sigma$。
+以下是推理规则集合。其中 #j("VAR") 是公理，其他规则都是推理。横线读作“蕴含”。记号 $A tack e : tau$ 表示给定一个假设集合 $A$，我们可以推导出表达式 $e$ 具有类型 $tau$。一个假设就是表达式 $e$ 中一个变量的类型，它可以是自由类型。记号 $A. x : tau$ 表示将集合 $A$ 与假设 $x : tau$ 取并集；记号 $tau[sigma\/alpha]$ 表示将 $tau$ 中 $alpha$ 的所有自由出现替换为 $sigma$。
 
 $
-  & "[VAR]" wide && A.x : tau tack x : tau \
+  & #l("VAR") wide && A.x : tau tack x : tau \
   \
-  & "[COND]" wide && frac(
-    A tack e : "bool" quad A tack e' : tau quad A tack e'' : tau,
-    A tack ("if" e "then" e' "else" e'') : tau
+  & #l("COND") wide && display(
+    (A tack e : "bool" quad A tack e' : tau quad A tack e'' : tau)
+    /
+    (A tack ("if" e "then" e' "else" e'') : tau)
   ) \
   \
-  & "[ABS]" wide && frac(
-    A.x : sigma tack e : tau,
-    A tack (lambda x. e) : sigma -> tau
+  & #l("ABS") wide && display(
+    (A.x : sigma tack e : tau)
+    /
+    (A tack (lambda x. e) : sigma -> tau)
   ) \
   \
-  & "[COMB]" wide && frac(
-    A tack e : sigma -> tau quad A tack e' : sigma,
-    A tack (e compose e') : tau
+  & #l("COMB") wide && display(
+    (A tack e : sigma -> tau quad A tack e' : sigma)
+    /
+    (A tack (e compose e') : tau)
   ) \
   \
-  & "[LET]" wide && frac(
-    A tack e' : sigma quad A.x : sigma tack e : tau,
-    A tack ("let" x = e' "in" e) : tau
+  & #l("LET") wide && display(
+    (A tack e' : sigma quad A.x : sigma tack e : tau)
+    /
+    (A tack ("let" x = e' "in" e) : tau)
   ) \
   \
-  & "[REC]" wide && frac(
-    A.x : tau tack e : tau,
-    A tack ("rec" x. e) : tau
+  & #l("REC") wide && display(
+    (A.x : tau tack e : tau)
+    /
+    (A tack ("rec" x. e) : tau)
   ) \
   \
-  & "[GEN]" wide && frac(
-    A tack e : tau,
-    A tack e : forall alpha . tau
-  ) wide (alpha "not free in" A) \
+  & #l("GEN") wide && display(
+    (A tack e : tau)
+    /
+    (A tack e : forall alpha . tau)
+  ) wide (alpha "不是" A "中的自由变量") \
   \
-  & "[SPEC]" wide && frac(
-    A tack e : forall alpha . tau,
-    A tack e : tau[sigma \/ alpha]
+  & #l("SPEC") wide && display(
+    (A tack e : forall alpha . tau)
+    /
+    (A tack e : tau[sigma \/ alpha])
   )
 $
 
+我们首先来看这样一个例子，我们可以推导出恒等函数最泛型的类型：#raw("fun x. x", lang: "ml") : $forall alpha . alpha -> alpha$
+
+$
+  display(
+    display(
+      (x : alpha tack x : alpha quad [#j("VAR")])
+      /
+      (tack ("fun" x. x) : alpha -> alpha quad [#j("ABS")])
+    )
+    /
+    (tack ("fun" x. x) : forall alpha . alpha -> alpha quad [#j("GEN")])
+  )
+$
+
+一个特化版本的恒等函数可以从泛型的类型中被推导出来：
+
+$
+  display(
+    (tack ("fun" x. x) : forall alpha . alpha -> alpha)
+    /
+    (tack ("fun" x. x) : "int" -> "int")
+  ) quad [#j("SPEC")]
+$
+
+或者更直接地：
+
+$
+  display(
+    (x : "int" tack x : "int" quad [#j("VAR")])
+    /
+    (tack ("fun" x. x): "int" -> "int" quad [#j("ABS")])
+  )
+$
+
+我们可以扩展上述推理过程，来揭示 `(fun x. x)(3)` : $"int"$：
+
+$
+  display(
+    (display(
+      (x : "int" "," 3 : "int" tack x : "int" [#j("VAR")])
+      /
+      (3 : "int" tack ("fun" x. x): "int" -> "int" [#j("ABS")])
+    ) quad 3 : "int" tack 3 : "int" [#j("VAR")])
+    /
+    (3 : "int" tack ("fun" x. x)(3) : "int" [#j("COMB")])
+  )
+$
+
+以下是一个非法的派生，其中包含非浅显的类型。这种类型可以被用于 #raw("(fun x. x x)", lang: "ml")，而我们的算法无法处理这种表达式。
+
+$
+  display(
+    display(
+      (display(
+        (x : phi tack x : phi quad [#j("VAR")])
+        /
+        (x : phi tack x : phi -> phi [#j("SPEC")])
+      ) quad x : phi tack x : phi [#j("VAR")])
+      /
+      (x : phi tack x x : phi quad [#j("COMB")])
+    )
+    /
+    (tack ("fun" x. x x) : phi -> phi quad [#j("ABS")])
+  )
+\
+\
+  "here" phi = forall alpha . alpha -> alpha
+$
+
+注意观察 $forall alpha. alpha -> alpha$ 是经规则 #j("SPEC") 将 $alpha$ 替换为 $forall alpha. alpha -> alpha$，最终被实例化成 $(forall alpha. alpha -> alpha) -> (forall alpha. alpha -> alpha)$ 的。
+
+现在我们来展示如何推导出 #raw("(let f = fun x.x in pair (f 3) (f true))", lang: "ml") : $"int" times "bool"$：
+
+$
+  令 quad & A = {3 : "int", "true": "bool", "pair": forall alpha. forall beta. alpha -> beta -> alpha times beta} \
+  & phi = forall alpha . alpha -> alpha
+  \
+  \
+  则 quad & display(
+    (display(
+      (A.f : phi tack f : phi)
+      /
+      (A.f : phi tack f : "int" -> "int")
+    ) quad A.f : phi tack 3 : "int")
+    /
+    (A.f : phi tack f thick 3 : "int")
+  )
+  \
+  & display(
+    (display(
+      (A.f : phi tack f : phi)
+      /
+      (A.f : phi tack f : "bool" -> "bool")
+    ) quad A.f : phi tack "true" : "bool")
+    /
+    (A.f : phi tack f thick "true" : "bool")
+  )
+  \
+  & display(
+    display(
+      & A.f : phi tack f thick 3 : "int"
+      \
+      & A.f : phi tack f thick "true" : "bool"
+      \
+      & A.f : phi tack "pair" : forall alpha. forall beta . alpha -> beta -> alpha times beta
+    )
+    /
+    display(...)
+    /
+    (A.f : phi tack "pair" (f thick 3) (f thick "true") : "int" times "bool")
+  )
+  \
+  & display(
+    (A tack "fun" x. x : phi quad A.f : phi tack "pair" (f thick 3) (f thick "true") : "int" times "bool")
+    /
+    (A tack ("let" f = "fun" x. x "in" "pair" (f thick 3) (f thick "true")) : "int" times "bool")
+  )
+$
+
+注意对于假设 $f : forall alpha. alpha -> alpha$，我们可以分别将 $"int"$ 和 $"bool"$ 代入 $alpha$ 来进行两次独立的实例化。也就是说，$f$ 拥有泛型类型。与此相反，在表达式 #raw("(fun f. pair (f 3) (f true))(fun x. x)", lang: "ml") —— 即以上 `let` 表达式的函数应用版本中，我们无法为 #raw("(fun f. pair (f 3) (f true))(fun x. x)", lang: "ml") 推导出一个浅显类型。
+
+如果一个变量没有在外围的 lambda 绑定器中出现，那么这个变量就是泛型的。这些绑定器必须被加入假设集合中，这样它们就能在之后创建这些外围 lambda 的时候被 #j("ABS") 丢弃。因此，如果一个变量没有出现在假设集合中，那么它就是泛型的。也正因如此，如果一个变量是泛型的，我们可以对其应用 #j("GEN") 规则来给它添加一个量词。这确定了泛型变量和量词之间的准确关系。
+
+有一种形式化的方式来将上述推导系统和前面小节中的类型检查算法联系起来。显然，如果类型检查算法成功地得出了一个表达式的类型，那么这个类型也可以从推理系统中被推导出来（见 #ref("Milner 78"))。我们会采取一种不同的、非形式化的方式来直观地证明类型检查算法。我们将会展示如何从一个推理系统中抽取出类型检查算法。从这个视角来看，类型检查算法就是一个_证明启发式（proof heuristic）_，也就是说它是一种确定推理规则的应用次序的策略。如果证明启发式成功了，我们就知道类型可以被推导出来。不过如果证明启发式失败了，还是有可能推导出一个类型的。例如，我们的启发式无法应用于需要非浅显类型变换（non-shallow type manipulation）的表达式，例如它推不出 #raw("(fun x. x x)(fun x. x)", lang: "ml") : $forall alpha. alpha -> alpha$。
+
+这个启发式有两个部分：如何确定假设集合，以及应用推理规则的次序。如果语言要求所有的标识符都有类型声明，获得假设集合的过程就显而易见了；否则，我们就需要进行类型推断（type inference）。
+
+在进行类型推断时，首先将 lambda 绑定的标识符与类型变量关联，随后在类型检查中不断收集信息，以确定这些标识符应该到底是什么类型。也就是说，我们从最宽泛的假设出发，并按某种次序应用推理规则以构建证明。某些规则要求两个子表达式具有相同的类型。通常情况并非如此，因此我们归一化它们各自的类型，使得它们相等。归一化的过程会导致某些标识符的类型被特化出来。此时我们可以想象重复证明步骤，但此时我们已经有了一个更详细的假设集合：这次两个子表达式就会有相同的类型，我们就能继续类型检查了。
+
+= 参考文献
 #set heading(numbering: none)
 #let ref-target(txt) = [
   #text("[" + txt + "]", fill: rgb(0, 127, 255)) #label(txt)
 ]
-= 参考文献
-#ref-target("Burstall 80") R.Burstall, D.MacQueen, D.Sannella: "Hope: an Experimental Applicative Language", Conference Record of the 1980 LISP Coference, Stanford, August 1980, pp. 136-143.
+#ref-target("Burstall 80") R.Burstall, D.MacQueen, D.Sannella: "Hope: an Experimental Applicative Language", Conference Record of the 1980 LISP Conference, Stanford, August 1980, pp. 136-143.
 
 #ref-target("Damas 82") L.Damas, R.Milner: "Principal type-schemes for functional programs", Proc. POPL 82, pp. 207-212.
 
