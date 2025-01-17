@@ -4,7 +4,7 @@
   title: "基本多态类型检查",
   authors: (
     (name: "Luca Cardelli", contrib: "原作者", affiliation: "AT&T 贝尔实验室"),
-    (name: "Chuigda WhiteGive", contrib: "翻译", affiliation: "第七通用设计局"),
+    (name: "Chuigda Whitegive", contrib: "翻译", affiliation: "第七通用设计局"),
     (name: "Flaribbit", contrib: "Typst 技术支持", affiliation: "第七通用设计局"),
   )
 )
@@ -232,7 +232,7 @@ $
 
 像 `f` 这样由 lambda 引入的标识符，它的类型变量是_非泛型（non-generic）_的。因为就像这个例子中所展现的，类型变量在 `f` 出现的所有地方共享，并且他们的实例可能会有冲突。
 
-你可以试着给表达式 #jex("Ex1") 一个类型，例如你可以试着给它 $(alpha times beta) -> (beta times beta)$。这在 #ml("f (fun a. 0)") 这样的场景下是可以的，它能正常得到结果 #ml("(pair 0 0)")。然而这种类型系统总的来说是_不健全（unsound）_的：例如 `succ` 的类型可以与 $alpha -> beta$ 匹配，因而会被 `f` 接受，并被错误地应用到 `true` 上。Milner 的类型系统有一些健全的扩展能处理 #jex("Ex1") 这样的表达式，但它们不在讨论本文的范围内。
+你可以试着给表达式 #jex("Ex1") 一个类型，例如你可以试着给它 $(alpha -> beta) -> (beta times beta)$。这在 #ml("f (fun a. 0)") 这样的场景下是可以的，它能正常得到结果 #ml("(pair 0 0)")。然而这种类型系统总的来说是_不健全（unsound）_的：例如 `succ` 的类型可以与 $alpha -> beta$ 匹配，因而会被 `f` 接受，并被错误地应用到 `true` 上。Milner 的类型系统有一些健全的扩展能处理 #jex("Ex1") 这样的表达式，但它们不在讨论本文的范围内。
 
 因此，为 lambda 引入的标识符的_异质（heterogeneous）_使用标定类型是一个基本问题。实践中这基本上是可以接受的，因为像 #jex("Ex1") 这样的表达式不是很有用，也不是特别必要。我们需要在 #ml("let") 引入的标识符的异质使用问题上做得更好。考虑以下表达式：
 
