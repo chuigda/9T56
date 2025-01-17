@@ -15,6 +15,7 @@
   it
 }
 #show math.equation.where(block: true): set block(breakable: true)
+#show raw.where(block: true): set block(breakable: false)
 
 #let ref(txt) = link(label(txt))[\[#txt\]]
 #let ml(code) = raw(code, lang: "ml")
@@ -514,10 +515,14 @@ val rec
 val rec
   exists p nil = false |
   exists p (head :: tail) = if p head then true else exists p tail;
+```
+```ml
 
 {# ------ Option 类型 ------ #}
 
 type ′a Option = data none | some of ′a;
+```
+```ml
 
 {# ------ 指针类型 ------ #}
 
@@ -526,6 +531,8 @@ type ′a Pointer = data pointer of ′a Option ref;
 val Void() = pointer(ref none);
 val Access(pointer(ref(some V))) = V;
 val Assign(pointer P, V) = P := some V;
+```
+```ml
 
 {# ------ 时间戳 ------ #}
 
@@ -535,10 +542,14 @@ with local Counter = ref 0
      val SameStamp(stamp S, stamp S′) = (S = S′)
   end
 end;
+```
+```ml
 
 {# ------ 标识符 ------ #}
 
 type Ide = data symbol of String;
+```
+```ml
 
 {# ------ 表达式 ------ #}
 
@@ -553,6 +564,8 @@ and Decl = data
   defDecl of Ide * Term |
   andDecl of Decl * Decl |
   recDecl of Decl;
+```
+```ml
 
 {# ------ 类型 ------ #}
 
@@ -587,6 +600,8 @@ val rec OccursInType(TypeVar: Type, Type: Type): bool =
 
 val OccursInTypeList(TypeVar: Type, TypeList: Type list): bool =
   exists (fun Type => OccursInType(TypeVar, Type)) TypeList;
+```
+```ml
 
 {# ------ 泛型变量 ------ #}
 
@@ -599,6 +614,8 @@ val ExtendNGVars(Type: Type, nonGenericVars NGVars): NGVars =
 
 val Generic(TypeVar: Type, nonGenericVars NGVars): bool =
   not(OccursInTypeList(TypeVars, NGVars));
+```
+```ml
 
 {# ------ 复制类型 ------ #}
 
@@ -620,6 +637,8 @@ val FreshType(Type: Type, NGVars: NGVars): Type =
     else let val (OldVar, NewVar)::Rest = Scan
          in if SameVar(Var, OldVar) then NewVar else FreshVar(Var, Rest, Env) end
   in Fresh(Type, ref []) end;
+```
+```ml
 
 {# ------ 原语算子 ------ #}
 
@@ -628,6 +647,8 @@ val BoolType =
 
 val FunType (From: Type, Into: Type): Type =
   NewTypeOper(symbol "fun", [From; Into])
+```
+```ml
 
 {# ------ 归一化 ------ #}
 
@@ -648,6 +669,8 @@ val rec UnifyType (Type: Type, Type′: Type): unit =
 and UnifyArgs ([], []) = () |
     UnifyArgs (Hd::Tl, Hd′::Tl′) = (UnifyType(Hd, Hd′); UnifyArgs(Tl, Tl′)) |
     UnifyArgs (_) = escape "Unify";
+```
+```ml
 
 {# ------ 环境 ------ #}
 
@@ -664,6 +687,8 @@ val RetrieveTypeEnv (Ide: Ide, typeEnv TypeEnv, NGVars: NGVars): Type =
     Retrieve ((Bind, Type)::Rest: (Ide * Type) list): Type =
       if Ide = Bind then FreshType(Type, NGVars) else Retrieve Rest
   in Retrieve TypeEnv end;
+```
+```ml
 
 {# ------ 类型检查 ------ #}
 
@@ -719,8 +744,6 @@ and
   AnalyzeRecDecl(recDecl Rec, TypeEnv, NGVars): TypeEnv =
     AnalyzeRecDecl(Rec, TypeEnv, NGVars);
 ```
-
-$'$
 
 = 结论
 
