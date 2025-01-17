@@ -487,10 +487,10 @@ $
 
 以下 ML 程序实现了多态类型检查算法，也诠释了多态是如何在 ML 语言中应用的。ML 的语法和语义在 #ref("Milner 84") 中有所描述。以下是对程序和 ML 语言的一些注解：
 
-#strike[关键字以粗体表示，标识符以正体表示，而类型构造器以斜体表示。]类型构造器在表达式中被用于创建数据，并在模式匹配中被用于分析并选择数据分量。类型变量#strike[以正体表示]并且以单引号开头，例如 #ml("'a") 是一个类型变量，通常读作“阿尔法”。
+#strike[关键字以粗体表示，标识符以正体表示，而类型构造器以斜体表示。]类型构造器在表达式中被用于创建数据，并在模式匹配中被用于分析并选择数据分量。类型变量#strike[以正体表示]并且以单引号开头，例如 #ml("′a") 是一个类型变量，通常读作“阿尔法”。
 
 - 程序以标准列表操作函数开始，这些函数通过模式匹配来定义；注意这里没有使用类型声明。
-- 指针，也就是可以赋值的对值的引用，并没有内建到 ML 语言中。指针可以用 #ml("ref") （内建的可变引用）和 #ml("Option") 实现。一个指针就是一个可写的引用，指向一个可选的值；如果值不存在（#ml("none")），则指针为空指针，否则为非空指针（#ml("some")）。#ml("Void") 创建一个新的空指针，#ml("Access") 解引用指针，而 #ml("Assign") 更新指针。类型 #ml("'a Pointer") 是参数化的，不过在本程序中它只会被用于 #ml("Type Pointer")。
+- 指针，也就是可以赋值的对值的引用，并没有内建到 ML 语言中。指针可以用 #ml("ref") （内建的可变引用）和 #ml("Option") 实现。一个指针就是一个可写的引用，指向一个可选的值；如果值不存在（#ml("none")），则指针为空指针，否则为非空指针（#ml("some")）。#ml("Void") 创建一个新的空指针，#ml("Access") 解引用指针，而 #ml("Assign") 更新指针。类型 #ml("′a Pointer") 是参数化的，不过在本程序中它只会被用于 #ml("Type Pointer")。
 - 时间戳被用于区分不同的类型变量。时间戳是一种抽象类型（因而无法被伪造），内部有一个变量 #ml("Counter")，每次创建新时间戳都会自增这个变量。
 - 类型 #ml("Ide")、#ml("Term") 和 #ml("Decl") 从我们语言的抽象语法演变而来。一个类型表达式 #ml("Type") 可以是一个类型变量或一个类型算子。一个类型变量使用一个时间戳来标识。如果类型变量的类型指针为空，则它是未实例化的类型变量，否则就是已实例化的类型变量。一个类型算子（例如 $"bool"$ 或者 $->$）具有一个名字和一个类型参数列表（例如 $"bool"$ 没有参数，而 $->$ 应有两个参数）。
 - 当审视一个类型表达式时，函数 #ml("Prune") 会被调用：它总是返回一个类型表达式，其要么是一个未初始化的类型变量，要么是一个类型表达式。也就是说，它会跳过已经实例化的变量，并且从表达式中将它们修剪掉，从而移除由已实例化变量构成的长链。
@@ -517,11 +517,11 @@ val rec
 
 {# ------ Option 类型 ------ #}
 
-type 'a Option = data none | some of 'a;
+type ′a Option = data none | some of ′a;
 
 {# ------ 指针类型 ------ #}
 
-type 'a Pointer = data pointer of 'a Option ref;
+type ′a Pointer = data pointer of ′a Option ref;
 
 val Void() = pointer(ref none);
 val Access(pointer(ref(some V))) = V;
@@ -532,7 +532,7 @@ val Assign(pointer P, V) = P := some V;
 abstype Stamp = data stamp of int;
 with local Counter = ref 0
   in val NewStamp() = (Counter := !Counter + 1; stamp(!Counter));
-     val SameStamp(stamp S, stamp S') = (S = S')
+     val SameStamp(stamp S, stamp S′) = (S = S′)
   end
 end;
 
@@ -563,8 +563,8 @@ type rec Type = data
 val NewTypeVar() = var(NewStamp(), Void());
 val NewTypeOper(Name, Args) = oper(Name, Args);
 
-val SameVar(var(Stamp, _), var(Stamp', _)) =
-  SameStamp(Stamp, Stamp')
+val SameVar(var(Stamp, _), var(Stamp′, _)) =
+  SameStamp(Stamp, Stamp′)
 
 val rec Prune (Type: Type): Type =
   case Type of
@@ -631,22 +631,22 @@ val FunType (From: Type, Into: Type): Type =
 
 {# ------ 归一化 ------ #}
 
-val rec UnifyType (Type: Type, Type': Type): unit =
-  let rec Type = Prune Type and Type' = Prune Type'
+val rec UnifyType (Type: Type, Type′: Type): unit =
+  let rec Type = Prune Type and Type′ = Prune Type′
   in case Type of
     var (Stamp, Instance) =>
-      if OccursInType(Type, Type')
-      then case Type' of var(_) => () | oper(_) => escape "Unify"
-      else Assign(Instance, Type') |
+      if OccursInType(Type, Type′)
+      then case Type′ of var(_) => () | oper(_) => escape "Unify"
+      else Assign(Instance, Type′) |
     oper(Name, Args) =>
-      case Type' of
-        var(_) => UnifyType(Type', Type) |
-        oper(Name', Args') =>
-          if Name = Name' then UnifyArgs(Args, Args') else escape "Unify"
+      case Type′ of
+        var(_) => UnifyType(Type′, Type) |
+        oper(Name′, Args′) =>
+          if Name = Name′ then UnifyArgs(Args, Args′) else escape "Unify"
   end
 
 and UnifyArgs ([], []) = () |
-    UnifyArgs (Hd::Tl, Hd'::Tl') = (UnifyType(Hd, Hd'); UnifyArgs(Tl, Tl')) |
+    UnifyArgs (Hd::Tl, Hd′::Tl′) = (UnifyType(Hd, Hd′); UnifyArgs(Tl, Tl′)) |
     UnifyArgs (_) = escape "Unify";
 
 {# ------ 环境 ------ #}
@@ -719,6 +719,8 @@ and
   AnalyzeRecDecl(recDecl Rec, TypeEnv, NGVars): TypeEnv =
     AnalyzeRecDecl(Rec, TypeEnv, NGVars);
 ```
+
+$'$
 
 = 结论
 
