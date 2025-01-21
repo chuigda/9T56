@@ -20,8 +20,8 @@
 #let ref(txt) = link(label(txt))[\[#txt\]]
 #let ml(code) = raw(code, lang: "ml")
 
-= 前言
-本文是对 1984 年 Luca Cardelli 论文 #link("http://lucacardelli.name/Papers/BasicTypechecking%20(TR%201984).pdf")[Basic Polymorphic Typechecking] 的翻译，并且使用 Java 重写了论文中的例子，避免 ML 的语法对读者造成困扰，以及找不到好的 ML 实现对读者造成困扰。
+= 译者介绍
+本文是对 1984 年 Luca Cardelli 论文 #link("http://lucacardelli.name/Papers/BasicTypechecking%20(TR%201984).pdf")[Basic Polymorphic Typechecking] 的翻译。
 
 #set heading(numbering: "1.")
 

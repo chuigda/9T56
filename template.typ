@@ -21,16 +21,16 @@
 
   // Author information.
   align(center, pad(
-    top: 0.3em,
-    bottom: 0.3em,
-    x: 2em,
+    top: 2em,
+    bottom: 2em,
+    x: 4em,
     grid(
+      align: center,
       columns: (1fr,) * calc.min(3, authors.len()),
       gutter: 1em,
-      ..authors.map(author => align(center)[
+      ..authors.map(author => [
         *#author.name* \
-        #author.contrib \
-        #author.affiliation \
+        #author.contrib
       ]),
     ),
   ))
@@ -41,3 +41,5 @@
 
   body
 }
+
+#let defn(content) = par(first-line-indent: 1.5em, hanging-indent: 1.5em)[#content]
