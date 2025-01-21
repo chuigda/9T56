@@ -1,12 +1,14 @@
 // The project function defines how your document looks.
 // It takes your content and some metadata and formats it.
 // Go ahead and customize it to your liking!
+#let zh-fonts = ("Noto Serif", "Noto Serif SC")
+
 #let project(title: "", authors: (), body) = {
   // Set the document's basic properties.
   set document(author: authors.map(a => a.name), title: title)
   set page(numbering: "1", number-align: center)
   set text(lang: "en", font: "Libertinus Serif")
-  set text(lang: "zh", font: "Noto Serif")
+  set text(lang: "zh", font: zh-fonts)
 
   // Set paragraph spacing.
   set par(spacing: 0.9em)

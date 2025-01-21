@@ -36,9 +36,11 @@ Milner 的多态类型检查算法是非常成功的：它健全、高效、功�
 
 本文中的 ML 实现只考虑了类型检查中最基本的情况，并且许多对常见编程语言结构的扩展都相当明显。目前已知的非平凡扩展（本文不会讨论）包括重载、抽象数据类型、异常处理、可更新的数据、带标签的记录（labelled record）以及 联合（union）类型。许多其他的扩展仍然处于研究之中，并且人们普遍认为在类型检查的理论与实践中，重要的发现尚未浮出水面。
 
+本文给出了看待类型两种方式：由类型方程组成的系统，以及类型推理系统，并尝试非形式化地将它们与实现联系起来。
+
 = 一个简单的应用序（Applicative）语言
 
-本文所使用的语言是一个简单的带有常量的类型化 lambda 演算（typed lambda calculus），这被认为是 ML 语言的核心。求值机制（call-by-name 或者 call-by-value）并不影响类型检查。
+本文所使用的语言是一个简单的带有常量的类型化 lambda 演算，这被认为是 ML 语言的核心。求值机制（call-by-name 或者 call-by-value）并不影响类型检查。
 
 下面给出表达式的具体语法；相应的抽象语法在本文结尾处由程序中的 `Term` 类型给出（不含解析器与打印）。
 
@@ -110,15 +112,15 @@ let rec length =
 
 #let arena = "b1"
 #let l(numbering) = [
-  #set text(style: "italic", font: "Noto Serif", size: 9pt)
+  #set text(style: "italic", font: zh-fonts, size: 9pt)
   #text("[" + str(numbering) + "]", fill: rgb(0, 127, 255), style: "italic") #label(arena + "." + str(numbering))
 ]
 #let j(numbering) = [
-  #set text(style: "italic", font: "Noto Serif", size: 9pt)
+  #set text(style: "italic", font: zh-fonts, size: 9pt)
   #link(label(arena + "." + str(numbering)))[#str(numbering)]
 ]
 #let jf(s, e) = [
-  #set text(style: "italic", font: "Noto Serif", size: 9pt)
+  #set text(style: "italic", font: zh-fonts, size: 9pt)
   #link(label(arena + "." + str(s)))[#str(s)\~#str(e)]
 ]
 #let js(..numbers) = {
@@ -126,11 +128,11 @@ let rec length =
 }
 
 #let ex(tag) = [
-  #set text(style: "italic", font: "Noto Serif", size: 9pt)
+  #set text(style: "italic", font: zh-fonts, size: 9pt)
   #text("[" + tag + "]", fill: rgb(0, 127, 255), style: "italic") #label(tag)
 ]
 #let jex(tag) = [
-  #set text(style: "italic", font: "Noto Serif", size: 9pt)
+  #set text(style: "italic", font: zh-fonts, size: 9pt)
   #link(label(tag))[#str(tag)]
 ]
 
@@ -180,14 +182,14 @@ $
   &&& "else" "succ" ("length" ("tl" l)) &:& pi
 $
 
-行 #jf(1, 4) 代表预定义全局标识符的类型约束，这部分信息是已知的。条件结构（整个 `if` 表达式，译者注）施加了约束 #jf(5, 8)：测试（#ml("null l")）的结果必须是布尔型，并且两个分支表达式必须具有相同的类型 $gamma$。$gamma$ 同时也是整个条件表达式的类型。程序中的四个函数调用施加了约束 #jf(9, 20)：对于函数调用而言，函数符号必须具有一个函数类型（例如 #j(9) 中的 $delta -> epsilon$）；参数必须具有和函数定义域相同的类型（例如 #j(10) 中的 $delta$）；函数调用的结果必须具有和函数值域相同的类型（例如 #j(11) 中的 $epsilon$）。整个 lambda 表达式 #j(23) 具有类型 $mu -> nu$。
+行 #jf(1, 4) 代表预定义全局标识符的类型约束，这部分信息是已知的。条件结构（整个 `if` 表达式，译者注）施加了约束 #jf(5, 8)：测试（#ml("null l")）的结果必须是布尔型，并且两个分支表达式必须具有相同的类型 $gamma$。$gamma$ 同时也是整个条件表达式的类型。程序中的四个函数调用施加了约束 #jf(9, 20)：对于函数调用而言，函数符号必须具有一个函数类型（例如 #j(9) 中的 $delta -> epsilon$）；参数必须具有和函数定义域相同的类型（例如 #j(10) 中的 $delta$）；函数调用的结果必须具有和函数值域相同的类型（例如 #j(11) 中的 $epsilon$）。整个 lambda 表达式 #j(23) 具有类型 $mu -> nu$，其参数具有类型 $mu$，而其函数体具有类型 $nu$。最后的定义结构施加了被定义变量（$"length"$ #j(24)）必须具有和其定义 #j(25) 相同的类型。
 
 对 `length` 函数作类型检查需要：(i) 确保整个约束系统是一致的（比如绝对不能推导出 $"int" = "bool"$），并且 (ii) 对 $pi$ 求解这些约束。`length` 的类型可以按照如下方式推出：
 
 $
-  pi = mu -> nu & "by" [25, 23] \
-  nu = phi = beta "list" & "by" [21, 13, 12, 12] \
-  nu = gamma = "int" & "by" [22, 8, 6, 3]
+  pi = mu -> nu & "by" [#js(25, 23)] \
+  nu = phi = beta "list" & "by" [#js(21, 13, 12, 2)] \
+  nu = gamma = "int" & "by" [#js(22, 8, 6, 3)]
 $
 
 还需要更多工作才能证明 $beta$ 完全不受约束并且整个系统是一致的。下一节中描述的类型检查算法会系统性地完成这一工作，像约束系统上的定理证明器一样简单。
