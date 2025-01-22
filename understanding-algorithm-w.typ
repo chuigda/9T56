@@ -97,7 +97,7 @@ let hypotenuse = (λx. (λy. sqrt (times x x) (times y y)))
 in hypotenuse 5 10
 ```
 
-函数 `hypotenuse` 接受一个数字（作为参数 `x`），返回另一个函数。返回的这个函数同样接受一个数字（作为参数 `y`），但它返回一个数字。当这个函数像 `hypotenuse 5 10` 这样被调用时，它实际上的意思是“将函数 `hypotenuse` 函数应用到 `5` 上，然后把返回的这个函数应用到 `10` 上”，也就是 `(hypotenuse 5) 10`#strike[，括号中的部分先求值]。
+函数 `hypotenuse` 接受一个数字（作为参数 `x`），返回另一个函数。返回的这个函数同样接受一个数字（作为参数 `y`），但它返回一个数字。当这个函数像 `hypotenuse 5 10` 这样被调用时，它实际上的意思是“将函数 `hypotenuse` 函数应用到 `5` 上，然后把返回的这个函数应用到 `10` 上”，也就是 `(hypotenuse 5) 10`，括号中的部分先求值。
 
 让所有函数都只接受单个参数可以简化类型推导（因为这样就不用检查函数调用时传参的数量了）。这同时也意味着你可以部分地应用函数，例如：
 
@@ -108,7 +108,7 @@ in double 10
 
 将 `2` 应用于 `times` 会得到另一个函数，我们可以给这个函数一个名字，并在之后使用它。
 
-最后要指出一点：这门语言从语法上禁止了递归调用（在函数定义的内部函数名尚未被绑定，因此无法在函数定义内引用函数自身）。尽管如此，使用#link("https://en.wikipedia.org/wiki/Fixed-point_combinator")[不动点组合子]将非递归函数转换为递归函数还是可以的，虽说这个类型系统其实无法支持不动点组合子#footnote[译注：这里的意思应该是本文中的类型推导算法 Algorithm W 推不出不动点组合子的类型。不动点组合子 Y 的类型 $forall alpha. (alpha -> alpha) -> alpha$还是可以在这个类型系统中表示的，并且可以正常地参与其他部分的类型推理。参见 #link("https://dl.acm.org/doi/pdf/10.1145/582153.582176")[Principal type-schemes for functional programs]。]。
+最后要指出一点：这门语言从语法上禁止了递归调用（在函数定义的内部函数名尚未被绑定，因此无法在函数定义内引用函数自身）。尽管如此，使用#link("https://en.wikipedia.org/wiki/Fixed-point_combinator")[不动点组合子]将非递归函数转换为递归函数还是可以的，虽说靠 Algorithm W 无法推出不动点组合子的类型#footnote[译注：原文为“though this type system can\'t actually handle the fixed-point combinator”，直译为“这个类型系统实际上不能处理不动点组合子”。译者推测这里的意思是用本文中的类型推导算法 Algorithm W 推不出不动点组合子的类型。不动点组合子 Y 的类型 $forall alpha. (alpha -> alpha) -> alpha$ 还是可以在这个类型系统中表示的，并且如果把不动点组合子作为内建函数，它仍可以正常地参与其他部分的类型推理，并被用于模拟递归和互递归。参见 #link("https://dl.acm.org/doi/pdf/10.1145/582153.582176")[Principal type-schemes for functional programs]。]。
 
 = 类型系统 <type-system>
 这门语言中包含几种基本类型，例如 $"int"$ 和 $"bool"$。
@@ -420,7 +420,7 @@ in let x = square x
 - 对 `let` 绑定作类型检查：同样需要修改类型环境，需要应用和组合替换。
 - 对后三种表达式作类型检查还涉及到对子表达式递归应用算法。
 
-或者写成伪代码#footnote[取自论文 #link("https://dspace.library.uu.nl/bitstream/handle/1874/23951/heeren_02_generalizinghindleymilner.pdf")[Generalizing Hindley-Milner Type Inference Algorithms]，有修改。]：
+或者写成伪代码#footnote[译注：这段伪代码是译者加的，取自论文 #link("https://dspace.library.uu.nl/bitstream/handle/1874/23951/heeren_02_generalizinghindleymilner.pdf")[Generalizing Hindley-Milner Type Inference Algorithms]，有修改。]：
 
 #align(center)[#block(breakable: false)[
 #let invis(content) = text(content, fill: rgb(255, 255, 255))
@@ -434,7 +434,7 @@ $
                             &&& bold("in") (S_1, S_1 beta -> tau_1) \
   & W(Gamma, e_1 e_2) &=& bold("let") (S_1, tau_1) = W(Gamma, e_1), \
                       &&& invisb("let") (S_2, tau_2) = W(S_1 Gamma, e_2), \
-                      &&& invisb("let") S_3 = italic("unify")(S_2tau_1, tau_2 -> pi), "fresh" pi \
+                      &&& invisb("let") S_3 = italic("unify") #footnote[译注：$italic("unify")$ 原为 $italic("mgu")$] (S_2tau_1, tau_2 -> pi), "fresh" pi #footnote[译注：$pi$ 原为 $beta$] \
                       &&& bold("in") (S_3 compose S_2 compose S_1, S_3 pi) \
   & W(Gamma, bold("let") x = e_1 bold("in") e_2) &=& bold("let") (S_1, tau_1) = W(Gamma, e_1), \
                                         &&& invisb("let") (S_2, tau_2) = W(S_1 Gamma \\x union {x: italic("generalize")(S_1 Gamma, tau_1)}, e_2), \
