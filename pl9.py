@@ -1,8 +1,15 @@
+#!/usr/bin/env python3
+
 from __future__ import annotations
 from abc import abstractmethod
 from dataclasses import dataclass
+from typing import Tuple
 
 class Type:
+    @abstractmethod
+    def collect_type_vars(self, dst: list[TypeVar]):
+        pass
+
     @abstractmethod
     def instantiate(self, free: dict[TypeVar, TypeVar]) -> Type:
         pass
@@ -49,6 +56,9 @@ class TypeVar(Type):
 
     def fresh(self) -> TypeVar:
         return TypeVar(self.greek)
+
+    def collect_type_vars(self, dst: list[TypeVar]):
+        dst.append(self)
 
     def instantiate(self, free: dict[TypeVar, TypeVar]) -> Type:
         return free.get(self, self)
@@ -97,6 +107,10 @@ class TypeOp(Type):
                 if idx != len(self.args) - 1:
                     ret += ' '
         return ret
+
+    def collect_type_vars(self, dst: list[TypeVar]):
+        for arg in self.args:
+            arg.collect_type_vars(dst)
 
     def instantiate(self, free: dict[TypeVar, TypeVar]) -> Type:
         if len(self.args) == 0:
@@ -153,6 +167,9 @@ class TypeScheme:
 class Subst:
     mapping: dict[TypeVar, Type]
 
+    def __init__(self, mapping: dict[TypeVar, Type] = {}):
+        self.mapping = mapping
+
     def __str__(self) -> str:
         ret = '{'
         for (idx, tvar) in enumerate(self.mapping):
@@ -176,7 +193,7 @@ def compose_subst(s1: Subst, s2: Subst) -> Subst:
 
 
 @dataclass
-class UnifyException(Exception):
+class TyckException(Exception):
     text: str
 
 
@@ -191,28 +208,28 @@ def unify(t1: Type, t2: Type) -> Subst:
             return Subst({ t2: t1 })
         else:
             fresh_exception = True
-            raise UnifyException('错误：无法归一化类型 ' + str(t1) + ' 和 ' + str(t2))
-    except UnifyException as e:
+            raise TyckException(f'错误：无法归一化类型 {str(t1)} 和 {str(t2)}')
+    except TyckException as e:
         if not fresh_exception:
-            e.text += '\n  - 当归一化类型 ' + str(t1) + ' 和 ' + str(t2) + ' 时发生'
+            e.text += f'\n  - 当归一化类型 {str(t1)} 和 {str(t2)} 时发生'
         raise e
 
 
 def unify_type_op(t1: TypeOp, t2: TypeOp) -> Subst:
     if t1.op != t2.op:
-        raise UnifyException('错误：无法归一化类型算子 ' + str(t1) + ' 和 ' + str(t2) + '（运算符不同）')
+        raise TyckException(f'错误：无法归一化类型算子 {str(t1)} 和 {str(t2)}（运算符不同）')
 
     if len(t1.args) != len(t2.args):
-        raise UnifyException('错误：无法归一化类型算子 ' + str(t1) + ' 和 ' + str(t2) + '（类型算子的参数数目不同）')
+        raise TyckException(f'错误：无法归一化类型算子 {str(t1)} 和 {str(t2)}（类型算子的参数数目不同）')
 
-    s0 = Subst({})
+    s0 = Subst()
     for idx in range(0, len(t1.args)):
         try:
             s1 = unify(t1.args[idx].apply_subst(s0), t2.args[idx].apply_subst(s0))
             s0 = compose_subst(s0, s1)
-        except UnifyException as e:
-            e.text += '\n  - 当归一化类型算子的第 ' + str(idx + 1) + ' 个参数（' + str(t1.args[idx]) + ' 和 ' + str(t2.args[idx]) + '）时发生'
-            e.text += '\n    已分析的替换：' + str(s0)
+        except TyckException as e:
+            e.text += f'\n  - 当归一化类型算子的第 {str(idx + 1)} 个参数（{str(t1.args[idx])} 和 {str(t2.args[idx])}）时发生'
+            e.text += f'\n    已分析的替换：{str(s0)}'
             raise e
     return s0
 
@@ -240,20 +257,20 @@ class ExprLitBool(Expr):
 
 @dataclass
 class ExprVar(Expr):
-    var_name: str
+    x: str
 
     def __str__(self) -> str:
-        return str(self.var_name)
+        return str(self.x)
 
 
 @dataclass
 class ExprAbs(Expr):
-    var_name: str
+    x: str
     body: Expr
 
     def __str__(self) -> str:
         body = f'({str(self.body)})' if self.body.need_quote() else str(self.body)
-        return f'λ{self.var_name}. {body}'
+        return f'λ{self.x}. {body}'
 
     def need_quote(self) -> bool:
         return True
@@ -261,13 +278,28 @@ class ExprAbs(Expr):
 
 @dataclass
 class ExprApp(Expr):
-    fn: Expr
-    arg: Expr
+    e1: Expr
+    e2: Expr
 
     def __str__(self) -> str:
-        fn = f'({str(self.fn)})' if self.fn.need_quote() else str(self.fn)
-        arg = f'({str(self.arg)})' if self.fn.need_quote() else str(self.arg)
-        return f'{fn} {arg}'
+        e1 = f'({str(self.e1)})' if self.e1.need_quote() else str(self.e1)
+        e2 = f'({str(self.e2)})' if self.e1.need_quote() else str(self.e2)
+        return f'{e1} {e2}'
+
+    def need_quote(self) -> bool:
+        return True
+
+
+@dataclass
+class ExprLet(Expr):
+    x: str
+    e1: Expr
+    e2: Expr
+
+    def __str__(self) -> str:
+        e1 = f'({str(self.e1)})' if self.e1.need_quote() else str(self.e1)
+        e2 = f'({str(self.e2)})' if isinstance(self.e2, ExprLet) else str(self.e2)
+        return f'let {self.x} = {e1} in {e2}'
 
     def need_quote(self) -> bool:
         return True
@@ -282,15 +314,112 @@ class TypeEnv:
         self.parent = parent
         self.vars = {}
 
+    def lookup(self, var_name: str) -> TypeScheme | None:
+        if var_name in self.vars:
+            return self.vars[var_name]
 
-alpha = TypeVar(Alpha)
-sch1 = TypeScheme([alpha], fn_type(alpha, alpha))
-t1 = sch1.instantiate()
-print('instantate(', sch1, ') = ', t1, sep='')
+        if self.parent is not None:
+            return self.parent.lookup(var_name)
 
-t2 = fn_type(IntType, BoolType)
-print('unify(', t1, ', ', t2, ')', sep='')
-try:
-    print('=> ', unify(t1, t2), sep='')
-except UnifyException as e:
-    print(e.text)
+    def apply_subst(self, subst: Subst) -> TypeEnv:
+        ret = TypeEnv()
+        iter = self
+        while iter is not None:
+            for var_name in iter.vars:
+                var_scheme = iter.vars[var_name]
+                ret.vars[var_name] = TypeScheme(var_scheme.free, var_scheme.ty.apply_subst(subst))
+            iter = iter.parent
+        return ret
+
+    def collect_type_vars(self, dst: list[TypeVar]):
+        for var_scheme in self.vars.values():
+            var_scheme.ty.collect_type_vars(dst)
+        if self.parent is not None:
+            self.parent.collect_type_vars(dst)
+
+
+# 𝑊 :: 𝑇𝑦𝑝𝑒𝐸𝑛𝑣𝑖𝑟𝑜𝑛𝑚𝑒𝑛𝑡 × 𝐸𝑥𝑝𝑟𝑒𝑠𝑠𝑖𝑜𝑛 → 𝑆𝑢𝑏𝑠𝑡𝑖𝑡𝑢𝑡𝑖𝑜𝑛 × 𝑇𝑦𝑝𝑒
+def w(env: TypeEnv, expr: Expr) -> Tuple[Subst, Type]:
+    try:
+        # Trivial cases (literals)
+        if isinstance(expr, ExprLitInt):
+            return Subst(), IntType
+        elif isinstance(expr, ExprLitBool):
+            return Subst(), BoolType
+        # 𝑊(Γ, 𝑥) = ([], 𝑖𝑛𝑠𝑡𝑎𝑛𝑡𝑖𝑎𝑡𝑒(𝜎)), where (𝑥 : 𝜎) ∈ Γ
+        elif isinstance(expr, ExprVar):
+            scheme = env.lookup(expr.x)
+            if scheme is not None:
+                return Subst(), scheme.instantiate()
+            else:
+                raise TyckException(f'变量或函数 {expr.x} 尚未定义')
+        # 𝑊(Γ, 𝜆𝑥 → 𝑒)
+        elif isinstance(expr, ExprAbs):
+            # fresh 𝛽
+            beta = TypeVar(Beta)
+            env1 = TypeEnv(env)
+            # Γ' = Γ\𝑥 ∪ {𝑥 : 𝛽}
+            env1.vars[expr.x] = TypeScheme([], beta)
+            # 𝐥𝐞𝐭 (𝑆1, 𝜏1) = 𝑊(Γ', 𝑒)
+            s1, t1 = w(env1, expr.body)
+            # (𝑆1𝛽 → 𝜏1, 𝑆1)
+            return s1, fn_type(beta.apply_subst(s1), t1)
+        # 𝑊(Γ, 𝑒1𝑒2)
+        elif isinstance(expr, ExprApp):
+            # fresh 𝜋
+            pi = TypeVar(Pi)
+            # 𝐥𝐞𝐭 (𝑆1, 𝜏1) = 𝑊(Γ, 𝑒1)
+            s1, t1 = w(env, expr.e1)
+            # Γ' = 𝑆1Γ
+            env1 = env.apply_subst(s1)
+            # 𝐥𝐞𝐭 (𝑆2, 𝜏2) = 𝑊(Γ', 𝑒2)
+            s2, t2 = w(env, expr.e2)
+            # 𝑆3 = 𝑢𝑛𝑖𝑓𝑦(𝑆2𝜏1, 𝜏2 → 𝜋)
+            s3 = unify(t1.apply_subst(s2), fn_type(t2, pi))
+            # (𝑆3 ∘ 𝑆2 ∘ 𝑆1, 𝑆3𝜋)
+            return compose_subst(compose_subst(s1, s2), s3), pi.apply_subst(s3)
+        # 𝑊(Γ, 𝐥𝐞𝐭 𝑥 = 𝑒1 𝐢𝐧 𝑒2)
+        elif isinstance(expr, ExprLet):
+            # 𝐥𝐞𝐭 (𝑆1, 𝜏1) = 𝑊(Γ, 𝑒1)
+            s1, t1 = w(env, expr.e1)
+            # Γ' = 𝑆1Γ
+            env1 = env.apply_subst(s1)
+            # scheme(𝑥) = 𝑔𝑒𝑛𝑒𝑟𝑎𝑙𝑖𝑧𝑒(Γ', 𝜏1)
+            x_scheme = generalize(env1, t1)
+            # Γ'' = 𝑆1Γ\x ∪ {𝑥 : scheme(𝑥)}
+            env2 = env1
+            env2.vars[expr.x] = x_scheme
+            # let(𝑆2, 𝜏2) = 𝑊(Γ'', 𝑒2)
+            s2, t2 = w(env2, expr.e2)
+            return compose_subst(s1, s2), t2
+        else:
+            raise Exception(f'表达式 {expr} 的类型未知')
+    except TyckException as e:
+        e.text += f'\n  - 当检查表达式 {str(expr)} 时发生'
+        raise e
+
+
+def generalize(env: TypeEnv, t: Type) -> TypeScheme:
+    type_vars: list[TypeVar] = []
+    t.collect_type_vars(type_vars)
+    type_vars_in_env: list[TypeVar] = []
+    env.collect_type_vars(type_vars_in_env)
+
+    type_vars_in_env_set: set[TypeVar] = set(type_vars_in_env)
+    filtered_type_vars: list[TypeVar] = []
+    for type_var in type_vars:
+        if type_var not in type_vars_in_env_set:
+            filtered_type_vars.append(type_var)
+
+    return TypeScheme(filtered_type_vars, t)
+
+expr = ExprLet(
+    'id', ExprAbs('x', ExprVar('x')),
+    ExprApp(ExprApp(ExprVar('id'), ExprVar('square')), ExprApp(ExprVar('id'), ExprLitInt(5)))
+)
+
+env = TypeEnv()
+env.vars['square'] = TypeScheme([], fn_type(IntType, IntType))
+
+s, t = w(env, expr)
+print(f'w(Γ, "{str(expr)}") = {str(t)}, S = {str(s)}')
