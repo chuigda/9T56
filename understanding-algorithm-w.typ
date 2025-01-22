@@ -422,9 +422,7 @@ in let x = square x
 
 或者写成伪代码#footnote[取自论文 #link("https://dspace.library.uu.nl/bitstream/handle/1874/23951/heeren_02_generalizinghindleymilner.pdf")[Generalizing Hindley-Milner Type Inference Algorithms]，有修改。]：
 
-#show block: set block(breakable: false)
-#show math.equation.where(block: true): set block(breakable: false)
-#align(center)[#block[
+#align(center)[#block(breakable: false)[
 #let invis(content) = text(content, fill: rgb(255, 255, 255))
 #let invisb(content) = text(content, weight: "bold", fill: rgb(255, 255, 255))
 $
@@ -438,14 +436,12 @@ $
                       &&& invisb("let") (S_2, tau_2) = W(S_1 Gamma, e_2), \
                       &&& invisb("let") S_3 = italic("unify")(S_2tau_1, tau_2 -> pi), "fresh" pi \
                       &&& bold("in") (S_3 compose S_2 compose S_1, S_3 pi) \
-  & W(Gamma, bold("let") x = e_1 in e_2) &=& bold("let") (S_1, tau_1) = W(Gamma, e_1), \
+  & W(Gamma, bold("let") x = e_1 bold("in") e_2) &=& bold("let") (S_1, tau_1) = W(Gamma, e_1), \
                                         &&& invisb("let") (S_2, tau_2) = W(S_1 Gamma \\x union {x: italic("generalize")(S_1 Gamma, tau_1)}, e_2), \
                                         &&& bold("in") (S_2 compose S_1, tau_2) \
   \
 $
 ]]
-#show math.equation.where(block: true): set block(breakable: true)
-#show block: set block(breakable: true)
 
 希望这篇文章能让你理解诸如泛化或归一化之类的单个操作是如何工作的，以及它们的用途。也许在反复阅读本文之后，你甚至能理解它们在每种类型的表达式上的作用。
 
