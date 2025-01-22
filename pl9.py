@@ -433,40 +433,51 @@ def generalize(env: TypeEnv, t: Type) -> TypeScheme:
     return TypeScheme(filtered_type_vars, t)
 
 
-env = TypeEnv()
-env.vars['square'] = TypeScheme([], fn_type(IntType, IntType))
+def try_inference(expr: Expr):
+    env = TypeEnv()
+    env.vars['square'] = TypeScheme([], fn_type(IntType, IntType))
+
+    print(f'w(Γ, {str(expr)})')
+    try:
+        s, t = w(env, expr)
+        print(f'=> t = {str(t)}, S = {str(s)}')
+    except TyckException as e:
+        print(f'=> {e.text}')
+
 
 # 成功：let id = \x. x in (id square) (id 5)
-expr = ExprLet(
+try_inference(ExprLet(
     'id', ExprAbs('x', ExprVar('x')),
     ExprApp(ExprApp(ExprVar('id'), ExprVar('square')), ExprApp(ExprVar('id'), ExprLitInt(5)))
-)
-s, t = w(env, expr)
-print(f'w(Γ, "{str(expr)}")')
-print(f'=> t = {str(t)}, S = {str(s)}')
-print('------')
-print()
+))
+print('------\n')
+
+# 成功：let id = \x. x in (id id) (id id)
+try_inference(ExprLet(
+    'id', ExprAbs('x', ExprVar('x')),
+    ExprApp(ExprApp(ExprVar('id'), ExprVar('id')), ExprApp(ExprVar('id'), ExprVar('id')))
+))
+print('------\n')
 
 # 失败，因为存在无限类型：let id = \x. x in (\f. f f) id
-try:
-    expr_fail = ExprLet(
-        'id', ExprAbs('x', ExprVar('x')),
-        ExprApp(ExprAbs('f', ExprApp(ExprVar('f'), ExprVar('f'))), ExprVar('id'))
-    )
-    print(f'w(Γ, "{str(expr_fail)}")')
-    w(env, expr_fail)
-except TyckException as e:
-    print(f'=> {e.text}')
+try_inference(ExprLet(
+    'id', ExprAbs('x', ExprVar('x')),
+    ExprApp(ExprAbs('f', ExprApp(ExprVar('f'), ExprVar('f'))), ExprVar('id'))
+))
+print('------\n')
 
-print('------')
-print()
 # 失败，因为 lambda 引入的变量没有多态性：(\id. (id square) (id 5)) (\x. x)
-try:
-    expr_fail2 = ExprApp(
-        ExprAbs('id', ExprApp(ExprApp(ExprVar('id'), ExprVar('square')), ExprApp(ExprVar('id'), ExprLitInt(5)))),
-        ExprAbs('x', ExprVar('x'))
-    )
-    print(f'w(Γ, "{str(expr_fail2)}")')
-    w(env, expr_fail2)
-except TyckException as e:
-    print(f'=> {e.text}')
+try_inference(ExprApp(
+    ExprAbs('id', ExprApp(ExprApp(ExprVar('id'), ExprVar('square')), ExprApp(ExprVar('id'), ExprLitInt(5)))),
+    ExprAbs('x', ExprVar('x'))
+))
+print('------\n')
+
+# 失败，因为 let 绑定的变量来自 lambda，同样没有多态性：(\id. (let id1 = id in (id1 square) (id1 5))) (\x. x)
+try_inference(ExprApp(
+    ExprAbs('id', ExprLet(
+        'id1', ExprVar('id'),
+        ExprApp(ExprApp(ExprVar('id1'), ExprVar('square')), ExprApp(ExprVar('id1'), ExprLitInt(5)))
+    )),
+    ExprAbs('x', ExprVar('x'))
+))
