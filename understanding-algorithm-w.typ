@@ -55,7 +55,7 @@
 
 函数应用有一点不一样。比如说你有一个函数 `plus`，用参数 `x` 和 `y` 调用它的语法是 `plus x y`。如果你要先对 `x` 调用函数 `g`，然后再对结果调用 `f`，你就得使用括号：`f (g x)`。或者写成 `(f (g x))` 也行。某种意义上来说，`plus x y` 其实是 `(plus x) y`，不过我们稍候再讨论。
 
-函数抽象的语法就是字母 `λ` 加上单个参数（为什么只有一个参数？还是一样，稍后再说）后面跟着一个点，然后是一个作为函数体的表达式。例如：`λx. plus 1 x` 是一个将给定的数字加上 `1` 的函数。函数本身没有名字。将函数定义用括号括起来是很常见的。函数的函数体可以是另一个函数，例如 `λx. λy. plus x y`（实际上是 `(λx. (λy. (plus x y)))`）。
+函数抽象的语法就是字母 `λ` 加上单个参数 #footnote[原文无此 `λ`。]（为什么只有一个参数？还是一样，稍后再说）后面跟着一个点，然后是一个作为函数体的表达式。例如：`λx. plus 1 x` 是一个将给定的数字加上 `1` 的函数。函数本身没有名字。将函数定义用括号括起来是很常见的。函数的函数体可以是另一个函数，例如 `λx. λy. plus x y`（实际上是 `(λx. (λy. (plus x y)))`）。
 
 `let` 绑定包含一个变量名、一个表达式作为变量的值，以及一个要求值的表达式（其中涉及到刚刚绑定的变量）。例如：#ml("let square = (λx. times x) in square 10")。
 
@@ -434,7 +434,7 @@ $
                             &&& bold("in") (S_1, S_1 beta -> tau_1) \
   & W(Gamma, e_1 e_2) &=& bold("let") (S_1, tau_1) = W(Gamma, e_1), \
                       &&& invisb("let") (S_2, tau_2) = W(S_1 Gamma, e_2), \
-                      &&& invisb("let") S_3 = italic("unify") #footnote[译注：$italic("unify")$ 原为 $italic("mgu")$] (S_2tau_1, tau_2 -> pi), "fresh" pi #footnote[译注：$pi$ 原为 $beta$] \
+                      &&& invisb("let") S_3 = italic("unify") #footnote[译注：$italic("unify")$ 原为 $italic("mgu")$，即 Most General Unify。] (S_2tau_1, tau_2 -> pi), "fresh" pi #footnote[译注：$pi$ 原为 $beta$。] \
                       &&& bold("in") (S_3 compose S_2 compose S_1, S_3 pi) \
   & W(Gamma, bold("let") x = e_1 bold("in") e_2) &=& bold("let") (S_1, tau_1) = W(Gamma, e_1), \
                                         &&& invisb("let") (S_2, tau_2) = W(S_1 Gamma \\x union {x: italic("generalize")(S_1 Gamma, tau_1)}, e_2), \
