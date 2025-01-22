@@ -58,7 +58,7 @@
 
 函数抽象的语法就是字母 `λ` 加上单个参数 #footnote[原文无此 `λ`。]（为什么只有一个参数？还是一样，稍后再说）后面跟着一个点，然后是一个作为函数体的表达式。例如：`λx. plus 1 x` 是一个将给定的数字加上 `1` 的函数。函数本身没有名字。将函数定义用括号括起来是很常见的。函数的函数体可以是另一个函数，例如 `λx. λy. plus x y`（实际上是 `(λx. (λy. (plus x y)))`）。
 
-`let` 绑定包含一个变量名、一个表达式作为变量的值，以及一个要求值的表达式（其中涉及到刚刚绑定的变量）。例如：#ml("let square = (λx. times x) in square 10")。
+`let` 绑定包含一个变量名、一个表达式作为变量的值，以及一个要求值的表达式（其中涉及到刚刚绑定的变量）。例如：#ml("let square = (λx. times x x) in square 10")。
 
 以下是语法的大致 BNF：
 
@@ -480,7 +480,6 @@ $
 - #link("http://citeseerx.ist.psu.edu/viewdoc/download?doi=10.1.1.65.7733&rep=rep1&type=pdf")[Algorithm W Step by Step]：使用 Haskell 实现了 Algorithm W
 - #link("https://dl.acm.org/doi/pdf/10.1145/582153.582176")[Principal type-schemes for functional programs]：给出了完整的 Algorithm W，读起来比较紧凑
 - #link("https://ericlippert.com/2016/11/30/4498/")[Excessive explaination]：首个尝试事无巨细地解释 Algorithm W 的一系列博客
-
 
 #colbreak()
 
