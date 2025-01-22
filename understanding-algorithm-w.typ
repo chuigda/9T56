@@ -108,7 +108,7 @@ in double 10
 
 将 `2` 应用于 `times` 会得到另一个函数，我们可以给这个函数一个名字，并在之后使用它。
 
-最后要指出一点：这门语言从语法上禁止了递归调用（在函数定义的内部函数名尚未被绑定，因此无法在函数定义内引用函数自身）。尽管如此，使用#link("https://en.wikipedia.org/wiki/Fixed-point_combinator")[不动点组合子]将非递归函数转换为递归函数还是可以的，但这个类型系统其实支持不了不动点组合子。
+最后要指出一点：这门语言从语法上禁止了递归调用（在函数定义的内部函数名尚未被绑定，因此无法在函数定义内引用函数自身）。尽管如此，使用#link("https://en.wikipedia.org/wiki/Fixed-point_combinator")[不动点组合子]将非递归函数转换为递归函数还是可以的，虽说这个类型系统其实无法支持不动点组合子#footnote[译注：这里的意思应该是本文中的类型推导算法 Algorithm W 推不出不动点组合子的类型。不动点组合子 Y 的类型 $forall alpha. (alpha -> alpha) -> alpha$还是可以在这个类型系统中表示的，并且可以正常地参与其他部分的类型推理。参见 #link("https://dl.acm.org/doi/pdf/10.1145/582153.582176")[Principal type-schemes for functional programs]。]。
 
 = 类型系统 <type-system>
 这门语言中包含几种基本类型，例如 $"int"$ 和 $"bool"$。
@@ -173,7 +173,7 @@ in (id square) (id 123)
 
 好了，回到函数类型上来。以 $"int" -> alpha$ 和 $beta -> "bool"$ 这两个类型为例，归一化算法首先归一化左边（$"int"$ 和 $beta$），得到替换 ${ beta: "int" }$。接着，归一化算法再归一化右边（$alpha$ 和 $"bool"$），得到替换 ${ alpha: "bool" }$。接下来，归一化算法将两个替换结合起来，得到 ${ alpha: "bool", beta: "int" }$。如果我们对两个输入的类型应用这个替换，就会得到同一个类型：$"int" -> "bool"$。
 
-还跟得上吧？好，现在是时候看看更高级的情况了。如果我们归一化 $alpha -> alpha$ 和 $"int" -> gamma$ 会怎么样？（如果我们将恒等函数应用于一个整数，我们就会看到这样的归一化，其中 $gamma$ 用来捕获函数的返回类型。）和之前一样，我们先归一化左边的 $alpha$ 和 $"int"$ 得到 ${ alpha : "int" }$。这里的情况有点微妙，我们得先把另一个 $alpha$（函数类型右边的哪个）换成 $"int"$，然后再继续操作：正如之前所说，当你取代一个类型变量的时候，你得把它所有出现的地方都换掉#super(link(label("footnote.1"))[1])。所以在归一化左边之后，两个类型就变成了 $"int" -> "int"$ 和 $"int" -> gamma$。现在我们可以归一化右边的 $"int"$ 和 $gamma$ 了，这会得到 ${ gamma: "int" }$。最后我们结合两个替换，得到 ${ alpha: "int", gamma: "int" }$。恭喜，你刚刚检查出了对一个整数应用恒等函数会获得一个整数！
+还跟得上吧？好，现在是时候看看更高级的情况了。如果我们归一化 $alpha -> alpha$ 和 $"int" -> gamma$ 会怎么样？（如果我们将恒等函数应用于一个整数，我们就会看到这样的归一化，其中 $gamma$ 用来捕获函数的返回类型。）和之前一样，我们先归一化左边的 $alpha$ 和 $"int"$ 得到 ${ alpha : "int" }$。这里的情况有点微妙，我们得先把另一个 $alpha$（函数类型右边的哪个）换成 $"int"$，然后再继续操作：正如之前所说，当你取代一个类型变量的时候，你得把它所有出现的地方都换掉#footnote[“在所有出现的地方替换”实现起来其实是“在类型推导算法当前正在处理的类型上替换”。之后，调用者应该在所有需要的地方应用这个替换。]。所以在归一化左边之后，两个类型就变成了 $"int" -> "int"$ 和 $"int" -> gamma$。现在我们可以归一化右边的 $"int"$ 和 $gamma$ 了，这会得到 ${ gamma: "int" }$。最后我们结合两个替换，得到 ${ alpha: "int", gamma: "int" }$。恭喜，你刚刚检查出了对一个整数应用恒等函数会获得一个整数！
 
 有两种归一化的特殊情况，我得提一下：
 + 通常，当你把一个类型变量和什么东西归一化的时候，这会产生一个替换，其中包含将这个类型变量取代为另一个类型（即使它是另一个类型变量）。例外就是当两边是同一个类型变量的时候，结果会是一个空替换 ${}$（因为不需要改变什么就能让两个类型相等）。
@@ -454,8 +454,5 @@ in let x = square x
 
 == 参见
 - #link("http://citeseerx.ist.psu.edu/viewdoc/download?doi=10.1.1.65.7733&rep=rep1&type=pdf")[Algorithm W Step by Step]：使用 Haskell 实现了 Algorithm W
-- #link("http://web.cs.wpi.edu/~cs4536/c12/milner-damas_principal_types.pdf")[Principal type-schemes for functional programs]：给出了完整的 Algorithm W，读起来比较紧凑
+- #link("https://dl.acm.org/doi/pdf/10.1145/582153.582176")[Principal type-schemes for functional programs]：给出了完整的 Algorithm W，读起来比较紧凑
 - #link("https://ericlippert.com/2016/11/30/4498/")[Excessive explaination]：首个尝试事无巨细地解释 Algorithm W 的一系列博客
-
-== 脚注
-- 1<footnote.1>. “在所有出现的地方替换”实现起来其实是“在类型推导算法当前正在处理的类型上替换”。之后，调用者应该在所有需要的地方应用这个替换。
