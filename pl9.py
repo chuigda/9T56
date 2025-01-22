@@ -5,6 +5,7 @@ from abc import abstractmethod
 from dataclasses import dataclass
 from typing import Tuple
 
+
 class Type:
     @abstractmethod
     def contains_type_var(self, type_var: TypeVar) -> bool:
