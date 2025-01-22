@@ -7,6 +7,10 @@ from typing import Tuple
 
 class Type:
     @abstractmethod
+    def contains_type_var(self, type_var: TypeVar) -> bool:
+        pass
+
+    @abstractmethod
     def collect_type_vars(self, dst: list[TypeVar]):
         pass
 
@@ -56,6 +60,9 @@ class TypeVar(Type):
 
     def fresh(self) -> TypeVar:
         return TypeVar(self.greek)
+
+    def contains_type_var(self, type_var: TypeVar) -> bool:
+        return self == type_var
 
     def collect_type_vars(self, dst: list[TypeVar]):
         dst.append(self)
@@ -107,6 +114,12 @@ class TypeOp(Type):
                 if idx != len(self.args) - 1:
                     ret += ' '
         return ret
+
+    def contains_type_var(self, type_var: TypeVar) -> bool:
+        for arg in self.args:
+            if arg.contains_type_var(type_var):
+                return True
+        return False
 
     def collect_type_vars(self, dst: list[TypeVar]):
         for arg in self.args:
@@ -203,9 +216,9 @@ def unify(t1: Type, t2: Type) -> Subst:
         if isinstance(t1, TypeOp) and isinstance(t2, TypeOp):
             return unify_type_op(t1, t2)
         elif isinstance(t1, TypeVar):
-            return Subst({ t1: t2 })
+            return unify_type_var(t1, t2)
         elif isinstance(t2, TypeVar):
-            return Subst({ t2: t1 })
+            return unify_type_var(t2, t1)
         else:
             fresh_exception = True
             raise TyckException(f'错误：无法归一化类型 {str(t1)} 和 {str(t2)}')
@@ -213,6 +226,12 @@ def unify(t1: Type, t2: Type) -> Subst:
         if not fresh_exception:
             e.text += f'\n  - 当归一化类型 {str(t1)} 和 {str(t2)} 时发生'
         raise e
+
+
+def unify_type_var(t1: TypeVar, t2: Type) -> Subst:
+    if t2.contains_type_var(t1):
+        raise TyckException(f'错误：无法归一化类型变量 {str(t1)} 和类型 {str(t2)}：后者中存在对前者的引用，这是不允许的')
+    return Subst({ t1: t2 })
 
 
 def unify_type_op(t1: TypeOp, t2: TypeOp) -> Subst:
@@ -422,4 +441,18 @@ env = TypeEnv()
 env.vars['square'] = TypeScheme([], fn_type(IntType, IntType))
 
 s, t = w(env, expr)
-print(f'w(Γ, "{str(expr)}") = {str(t)}, S = {str(s)}')
+print(f'w(Γ, "{str(expr)}")')
+print(f'=> t = {str(t)}, S = {str(s)}')
+print('------')
+print()
+
+# fail case: let id = \x. x in (\f. f f) id
+try:
+    expr_fail = ExprLet(
+        'id', ExprAbs('x', ExprVar('x')),
+        ExprApp(ExprAbs('f', ExprApp(ExprVar('f'), ExprVar('f'))), ExprVar('id'))
+    )
+    print(f'w(Γ, "{str(expr_fail)}")')
+    w(env, expr_fail)
+except TyckException as e:
+    print(f'=> {e.text}')
