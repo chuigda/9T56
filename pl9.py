@@ -436,7 +436,7 @@ def generalize(env: TypeEnv, t: Type) -> TypeScheme:
 env = TypeEnv()
 env.vars['square'] = TypeScheme([], fn_type(IntType, IntType))
 
-# success case: let id = \x. x in (id square) (id 5)
+# 成功：let id = \x. x in (id square) (id 5)
 expr = ExprLet(
     'id', ExprAbs('x', ExprVar('x')),
     ExprApp(ExprApp(ExprVar('id'), ExprVar('square')), ExprApp(ExprVar('id'), ExprLitInt(5)))
@@ -447,7 +447,7 @@ print(f'=> t = {str(t)}, S = {str(s)}')
 print('------')
 print()
 
-# fail case because of infinite type: let id = \x. x in (\f. f f) id
+# 失败，因为存在无限类型：let id = \x. x in (\f. f f) id
 try:
     expr_fail = ExprLet(
         'id', ExprAbs('x', ExprVar('x')),
@@ -460,7 +460,7 @@ except TyckException as e:
 
 print('------')
 print()
-# fail case because lambda does not introduce polymorphism: (\id. (id square) (id 5)) (\x. x)
+# 失败，因为 lambda 引入的变量没有多态性：(\id. (id square) (id 5)) (\x. x)
 try:
     expr_fail2 = ExprApp(
         ExprAbs('id', ExprApp(ExprApp(ExprVar('id'), ExprVar('square')), ExprApp(ExprVar('id'), ExprLitInt(5)))),
