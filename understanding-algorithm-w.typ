@@ -176,7 +176,7 @@ in (id square) (id 123)
 还跟得上吧？好，现在是时候看看更高级的情况了。如果我们归一化 $alpha -> alpha$ 和 $"int" -> gamma$ 会怎么样？（如果我们将恒等函数应用于一个整数，我们就会看到这样的归一化，其中 $gamma$ 用来捕获函数的返回类型。）和之前一样，我们先归一化左边的 $alpha$ 和 $"int"$ 得到 ${ alpha : "int" }$。这里的情况有点微妙，我们得先把另一个 $alpha$（函数类型右边的哪个）换成 $"int"$，然后再继续操作：正如之前所说，当你取代一个类型变量的时候，你得把它所有出现的地方都换掉#footnote[“在所有出现的地方替换”实现起来其实是“在类型推导算法当前正在处理的类型上替换”。之后，调用者应该在所有需要的地方应用这个替换。]。所以在归一化左边之后，两个类型就变成了 $"int" -> "int"$ 和 $"int" -> gamma$。现在我们可以归一化右边的 $"int"$ 和 $gamma$ 了，这会得到 ${ gamma: "int" }$。最后我们结合两个替换，得到 ${ alpha: "int", gamma: "int" }$。恭喜，你刚刚检查出了对一个整数应用恒等函数会获得一个整数！
 
 有两种归一化的特殊情况，我得提一下：
-+ 通常，当你把一个类型变量和什么东西归一化的时候，这会产生一个替换，其中包含将这个类型变量取代为另一个类型（即使它是另一个类型变量）。例外就是当两边是同一个类型变量的时候，结果会是一个空替换 ${}$（因为不需要改变什么就能让两个类型相等）。
++ 通常，当你把一个类型变量和什么东西归一化的时候，会产生一个替换，其中包含将这个类型变量取代为另一个类型（即使它是另一个类型变量）。例外就是当两边是同一个类型变量的时候，结果会是一个空替换 ${}$（因为不需要改变什么就能让两个类型相等）。
 + 在取代一个类型变量时，你不能用一个包含了这个类型变量的类型取代它。比如，不能用 $alpha -> beta$ 取代 $alpha$（用 $gamma -> beta$ 取代就是可以的）。遇到这种情况（比如归一化 $alpha -> delta$ 和 $(alpha -> beta) -> "int"$ 的左边的时候）应该报告类型错误。如果允许这种替换就会搞出无限大的类型。在许多文献中，这种类型也被称为“无限类型（infinite type）”。
 
 == 无限类型
@@ -217,7 +217,7 @@ $
 
 哦天啊，我们好像永远都无法摆脱 $tau_italic("f的参数")$ 了。没错，这就是为什么它是一个无限类型。
 
-事实：当你类型检查不动点组合子时，无限类型就会成为问题。
+事实：当你对不动点组合子的定义作类型检查时，就会遇到无限类型的问题。
 
 == 应用与组合替换
 
@@ -249,8 +249,8 @@ in (id id) (id id)
 
 记得看完算法部分之后回到这个例子上，看看你能不能学以致用（这可能得花上个把小时，过程是有点味同嚼蜡，不过它能让你更好地理解这个算法的机制）。
 
-= 系列与泛化 <schemes-and-generalization>
-一个系列（scheme，或称类型系列 type scheme）就是在类型上附加一些额外的信息：一个由类型变量组成的列表。列表中的类型变量是类型中出现的类型变量的子集（一些地方将这些类型变量称为“自由类型变量”）。通常这个列表是空的，但有时候对于函数类型而言，这个列表中会存在一些变量。
+= 系列（Scheme）与泛化（Generalization）<schemes-and-generalization>
+一个系列（scheme，或称类型系列 type scheme）#footnote[译注：在翻译这部分时，一个主要的困难在于如何翻译 Scheme 这个词。译者根据柯林斯词典的解释“a systematic arrangement of correlated parts; system”将其意译为“系列”。] 就是在类型上附加一些额外的信息：一个由类型变量组成的列表。列表中的类型变量是类型中出现的类型变量的子集（一些地方将这些类型变量称为“自由类型变量”）。通常这个列表是空的，但有时候对于函数类型而言，这个列表中会存在一些变量。
 
 光这么说太抽象了，还是看看我们的老伙计恒等函数吧。我之前说恒等函数的类型是 $alpha ->alpha$，这其实并不准确。如果我们把恒等函数在一个变量里存储起来：
 
@@ -287,7 +287,7 @@ $
   forall tau_1 forall tau_2 ... forall tau_n. sigma，thick "其中" tau_i "是" sigma "中的变量"
 $
 
-这就是为什么类型系列有时候被称为泛型类型（generic type）、量化类型（quantified type）、全称类型（universal type）或者多态类型（polymorphic type）。（译注：后一种记号以及这一段文本是译者根据个人理解自己加的，并且译者之后会继续使用第二种记号。）
+这就是为什么类型系列有时候被称为泛型类型（generic type）、量化类型（quantified type）、全称类型（universal type）或者多态类型（polymorphic type）#footnote[译注：后一种记号以及这一段文本是译者根据个人理解自己加的，并且译者之后会继续使用第二种记号。]。
 
 不过我们还没说过如何创建类型系列。类型系列是由一个类型（就是出现在类型系列中的那个类型）和环境中的其他信息创建出来的。类型可以被原封不动地抄到类型系列里，所以我们只要搞清楚哪些类型要被全称量词 $forall$ 量化就可以了。办法很简单：对于类型中的所有类型变量，如果它*没有*在类型环境中出现过，就用全称量词 $forall$ 量化它。
 
@@ -419,6 +419,33 @@ in let x = square x
 - 对函数应用作类型检查：同样需要创建一个新的类型变量并应用替换。此外它还要使用归一化算法，并且组合替换。
 - 对 `let` 绑定作类型检查：同样需要修改类型环境，需要应用和组合替换。
 - 对后三种表达式作类型检查还涉及到对子表达式递归应用算法。
+
+或者写成伪代码#footnote[取自论文 #link("https://dspace.library.uu.nl/bitstream/handle/1874/23951/heeren_02_generalizinghindleymilner.pdf")[Generalizing Hindley-Milner Type Inference Algorithms]，有修改。]：
+
+#show block: set block(breakable: false)
+#show math.equation.where(block: true): set block(breakable: false)
+#align(center)[#block[
+#let invis(content) = text(content, fill: rgb(255, 255, 255))
+#let invisb(content) = text(content, weight: "bold", fill: rgb(255, 255, 255))
+$
+  W :: italic("TypeEnvironment") times italic("Expression") -> italic("Substitution") times italic("Type")
+$
+$
+  & W(Gamma, x) &=& ([], italic("instantiate")(sigma)), "where" (x: sigma) in Gamma \
+  & W(Gamma, lambda x -> e) &=& bold("let") (S_1, tau_1) = W(Gamma\\x union {x: beta}, e), "fresh" beta \
+                            &&& bold("in") (S_1, S_1 beta -> tau_1) \
+  & W(Gamma, e_1 e_2) &=& bold("let") (S_1, tau_1) = W(Gamma, e_1), \
+                      &&& invisb("let") (S_2, tau_2) = W(S_1 Gamma, e_2), \
+                      &&& invisb("let") S_3 = italic("unify")(S_2tau_1, tau_2 -> pi), "fresh" pi \
+                      &&& bold("in") (S_3 compose S_2 compose S_1, S_3 pi) \
+  & W(Gamma, bold("let") x = e_1 in e_2) &=& bold("let") (S_1, tau_1) = W(Gamma, e_1), \
+                                        &&& invisb("let") (S_2, tau_2) = W(S_1 Gamma \\x union {x: italic("generalize")(S_1 Gamma, tau_1)}, e_2), \
+                                        &&& bold("in") (S_2 compose S_1, tau_2) \
+  \
+$
+]]
+#show math.equation.where(block: true): set block(breakable: true)
+#show block: set block(breakable: true)
 
 希望这篇文章能让你理解诸如泛化或归一化之类的单个操作是如何工作的，以及它们的用途。也许在反复阅读本文之后，你甚至能理解它们在每种类型的表达式上的作用。
 
