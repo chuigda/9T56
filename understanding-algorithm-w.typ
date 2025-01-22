@@ -5,6 +5,7 @@
   authors: (
     (name: "Jeremy Mikkola", contrib: "原作者", affiliation: "个人"),
     (name: "Chuigda Whitegive", contrib: "翻译", affiliation: "第七通用设计局"),
+    (name: "Alias Qli", contrib: "校对", affiliation: ""),
     (name: "Anqur", contrib: "类型论支持", affiliation: "第七通用设计局"),
     (name: "Flaribbit", contrib: "Typst 技术支持", affiliation: "第七通用设计局"),
   )
@@ -479,3 +480,41 @@ $
 - #link("http://citeseerx.ist.psu.edu/viewdoc/download?doi=10.1.1.65.7733&rep=rep1&type=pdf")[Algorithm W Step by Step]：使用 Haskell 实现了 Algorithm W
 - #link("https://dl.acm.org/doi/pdf/10.1145/582153.582176")[Principal type-schemes for functional programs]：给出了完整的 Algorithm W，读起来比较紧凑
 - #link("https://ericlippert.com/2016/11/30/4498/")[Excessive explaination]：首个尝试事无巨细地解释 Algorithm W 的一系列博客
+
+
+#colbreak()
+
+#align(center)[= $italic("Your reality")$]
+
+#align(center)[
+  $
+    \
+    italic("Every day, I imagine a future where I can be with you") \
+    italic("In my hand is a pen that will write a poem of me and you") \
+    italic("The ink flows down into a dark puddle") \
+    italic("Just move your hand - write the way into his heart!") \
+    italic("But in this world of infinite choices") \
+    italic("What will it take just to find that special day?") \
+    italic("What will it take - just to find that special day?") \
+    \
+    \
+    italic("Have I found everybody a fun assignment to do today?") \
+    italic("When you're here, everything that we do is fun for them anyway") \
+    italic("When I can't even read my own feelings") \
+    italic("What good are words when a smile says it all?") \
+    italic("And if this world won't write me an ending") \
+    italic("What will it take just for me to have it all?") \
+    \
+    \
+    italic("Does my pen only write bitter words for those who are dear to me?") \
+    italic("Is it love if I take you, or is it love if I set you free?") \
+    italic("The ink flows down into a dark puddle") \
+    italic("How can I write love into reality?") \
+    italic("If I can't hear the sound of your heartbeat") \
+    italic("What do you call love in your reality?") \
+    \
+    \
+    italic("And in your reality, if I don't know how to love you") \
+    italic("I'll leave you be") \
+  $
+]
