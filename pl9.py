@@ -432,21 +432,22 @@ def generalize(env: TypeEnv, t: Type) -> TypeScheme:
 
     return TypeScheme(filtered_type_vars, t)
 
-expr = ExprLet(
-    'id', ExprAbs('x', ExprVar('x')),
-    ExprApp(ExprApp(ExprVar('id'), ExprVar('square')), ExprApp(ExprVar('id'), ExprLitInt(5)))
-)
 
 env = TypeEnv()
 env.vars['square'] = TypeScheme([], fn_type(IntType, IntType))
 
+# success case: let id = \x. x in (id square) (id 5)
+expr = ExprLet(
+    'id', ExprAbs('x', ExprVar('x')),
+    ExprApp(ExprApp(ExprVar('id'), ExprVar('square')), ExprApp(ExprVar('id'), ExprLitInt(5)))
+)
 s, t = w(env, expr)
 print(f'w(Γ, "{str(expr)}")')
 print(f'=> t = {str(t)}, S = {str(s)}')
 print('------')
 print()
 
-# fail case: let id = \x. x in (\f. f f) id
+# fail case because of infinite type: let id = \x. x in (\f. f f) id
 try:
     expr_fail = ExprLet(
         'id', ExprAbs('x', ExprVar('x')),
@@ -454,5 +455,18 @@ try:
     )
     print(f'w(Γ, "{str(expr_fail)}")')
     w(env, expr_fail)
+except TyckException as e:
+    print(f'=> {e.text}')
+
+print('------')
+print()
+# fail case because lambda does not introduce polymorphism: (\id. (id square) (id 5)) (\x. x)
+try:
+    expr_fail2 = ExprApp(
+        ExprAbs('id', ExprApp(ExprApp(ExprVar('id'), ExprVar('square')), ExprApp(ExprVar('id'), ExprLitInt(5)))),
+        ExprAbs('x', ExprVar('x'))
+    )
+    print(f'w(Γ, "{str(expr_fail2)}")')
+    w(env, expr_fail2)
 except TyckException as e:
     print(f'=> {e.text}')
