@@ -7,7 +7,8 @@
     (name: "Chuigda Whitegive", contrib: "翻译", affiliation: "第七通用设计局"),
     (name: "Alias Qli", contrib: "校对", affiliation: ""),
     (name: "Anqur", contrib: "类型论支持", affiliation: "第七通用设计局"),
-    (name: "Flaribbit", contrib: "Typst 技术支持", affiliation: "第七通用设计局"),
+    (name: "Flaribbit", contrib: "校对\nTypst 技术支持", affiliation: "第七通用设计局"),
+    (name: "Lyra", contrib: "校对", affiliation: "第七通用设计局"),
   )
 )
 
@@ -19,7 +20,7 @@
 #let ml(code) = raw(code, lang: "ml")
 
 = 译者前言
-本文是对 Jeremy Mikkola 的文章 #link("https://jeremymikkola.com/posts/2018_03_25_understanding_algorithm_w.html")[Understanding Algorithm W] 的中文翻译，并使用 Typst 重写了原文中的部分公式。一些记号和措辞经过改写，某种程度上可能更加可读，或是与其他论文中的记号更加一致。
+本文是对 Jeremy Mikkola 的文章 #link("https://jeremymikkola.com/posts/2018_03_25_understanding_algorithm_w.html")[Understanding Algorithm W] 的中文翻译，并使用 Typst 重写了原文中的部分公式。一些记号和措辞经过改写，某种程度上可能更加可读，或是与其他论文中的记号更加一致。本文附有 #link("https://github.com/chuigda/9T56/blob/master/pl9.py")[Python 实现]。
 
 #set heading(numbering: "1.")
 

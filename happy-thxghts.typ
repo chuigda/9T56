@@ -28,4 +28,8 @@ $
     /
     (Gamma tack bold("break") e_1 : ! wide Gamma tack bold("loop") e : pi)
   ) && "[BREAK]" wide bold("break")  e_1 "is an expression inside" e \
+  \
+  (tau_1 times tau_2 times ... times tau_n) -> pi \
+  \
+  tau_1 -> tau_2 -> ... -> tau_n -> pi
 $
