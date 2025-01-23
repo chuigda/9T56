@@ -1,9 +1,8 @@
 #!/usr/bin/env python3
 
-# PL9J - PL9 in Algorithm J
+# PL9J - PL9 in Algorithm J - Extended
 #
-# 同样是 HM 类型系统的实现，但是采用 Algorithm J：它可以被视作命令式版本的
-# Algorithm W
+# 采用 Algorithm J 的 HM 类型系统的实现，同时经过一定程度的扩展
 
 from __future__ import annotations
 from abc import abstractmethod
