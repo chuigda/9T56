@@ -37,7 +37,7 @@ global_timestamp: dict[str, int] = {}
 @dataclass
 class TypeVar(Type):
     greek: str
-    timestamp: int | None
+    timestamp: int
     resolve: Type | None
 
     def __init__(self, greek: str):
@@ -52,10 +52,9 @@ class TypeVar(Type):
         self.resolve = None
 
     def __str__(self) -> str:
-        if self.timestamp is not None:
-            return self.greek + str(self.timestamp)
-        else:
-            return self.greek
+        if self.greek == Eta:
+            return '!'
+        return self.greek + str(self.timestamp)
 
     def __eq__(self, value: object) -> bool:
         if isinstance(value, TypeVar):
@@ -93,6 +92,11 @@ Delta = 'δ'
 Epsilon = 'ε'
 Pi = 'π'
 Tau = 'τ'
+Eta = 'η'
+
+
+def pseudo_never_type() -> TypeVar:
+    return TypeVar(Eta)
 
 
 @dataclass
@@ -149,24 +153,6 @@ class TypeOp(Type):
         return len(self.args) > 0
 
 
-@dataclass
-class NeverTypeT(Type):
-    def __str__(self) -> str:
-        return '!'
-
-    def contains_type_var(self, type_var: TypeVar) -> bool:
-        return False
-
-    def collect_type_vars(self, dst: list[TypeVar]):
-        pass
-
-    def instantiate(self, free: dict[TypeVar, TypeVar]) -> Type:
-        return self
-
-    def prune(self) -> Type:
-        return self
-
-
 def product_type(*types: Type) -> TypeOp:
     return TypeOp('*', list(types))
 
@@ -175,7 +161,6 @@ def fn_type(arg_type: Type, ret_type: Type) -> TypeOp:
     return TypeOp('->', [arg_type, ret_type])
 
 
-NeverType = NeverTypeT()
 UnitType = TypeOp('unit', [])
 IntType = TypeOp('int', [])
 BoolType = TypeOp('bool', [])
@@ -225,10 +210,6 @@ def unify(t1: Type, t2: Type):
             return unify_type_var(t1, t2)
         elif isinstance(t2, TypeVar):
             return unify_type_var(t2, t1)
-        elif isinstance(t1, NeverTypeT):
-            return t2
-        elif isinstance(t2, NeverTypeT):
-            return t1
         else:
             fresh_exception = True
             raise TyckException(f'错误：无法归一化类型 {str(t1)} 和 {str(t2)}')
@@ -435,9 +416,7 @@ def j(env: TypeEnv, expr: Expr) -> Type:
             t1 = j(env1, expr.body)
             for ty in env1.return_tys:
                 unify(t1, ty)
-                if isinstance(t1, NeverTypeT) and not isinstance(ty, NeverTypeT):
-                    t1 = ty
-            return fn_type(beta, t1)
+            return fn_type(beta, t1.prune())
         elif isinstance(expr, ExprApp):
             pi = TypeVar(Pi)
             t1 = j(env, expr.e1)
@@ -462,7 +441,7 @@ def j(env: TypeEnv, expr: Expr) -> Type:
             else:
                 t_ret = UnitType
             env.return_tys.append(t_ret)
-            return NeverType
+            return pseudo_never_type()
         elif isinstance(expr, ExprIf):
             t1 = j(env, expr.e1)
             t2 = j(env, expr.e2)
