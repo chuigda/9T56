@@ -330,10 +330,14 @@ class TypeEnv:
         if self.parent is not None:
             self.parent.collect_type_vars(dst)
 
+    def is_non_generic(self, v: TypeVar) -> bool:
+        if v in self.non_generic_type_vars:
+            return True
+        return self.parent.is_non_generic(v) if self.parent is not None else False
+
 
 def j(env: TypeEnv, expr: Expr) -> Type:
     try:
-        # Trivial cases (literals)
         if isinstance(expr, ExprLitInt):
             return IntType
         elif isinstance(expr, ExprLitBool):
@@ -358,10 +362,11 @@ def j(env: TypeEnv, expr: Expr) -> Type:
             unify(t1, fn_type(t2, pi))
             return pi.prune()
         elif isinstance(expr, ExprLet):
-            t1 = j(env, expr.e1)
-            x_scheme = generalize(env, t1)
-            env.vars[expr.x] = x_scheme
-            return j(env, expr.e2)
+            env1 = TypeEnv(env)
+            t1 = j(env1, expr.e1)
+            x_scheme = generalize(env1, t1)
+            env1.vars[expr.x] = x_scheme
+            return j(env1, expr.e2)
         else:
             raise Exception(f'表达式 {expr} 的类型未知')
     except TyckException as e:
@@ -375,7 +380,7 @@ def generalize(env: TypeEnv, t: Type) -> TypeScheme:
 
     filtered_type_vars: list[TypeVar] = []
     for type_var in set(type_vars):
-        if type_var not in env.non_generic_type_vars:
+        if not env.is_non_generic(type_var):
             filtered_type_vars.append(type_var)
 
     return TypeScheme(filtered_type_vars, t)
