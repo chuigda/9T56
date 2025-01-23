@@ -149,6 +149,24 @@ class TypeOp(Type):
         return len(self.args) > 0
 
 
+@dataclass
+class NeverTypeT(Type):
+    def __str__(self) -> str:
+        return '!'
+
+    def contains_type_var(self, type_var: TypeVar) -> bool:
+        return False
+
+    def collect_type_vars(self, dst: list[TypeVar]):
+        pass
+
+    def instantiate(self, free: dict[TypeVar, TypeVar]) -> Type:
+        return self
+
+    def prune(self) -> Type:
+        return self
+
+
 def product_type(*types: Type) -> TypeOp:
     return TypeOp('*', list(types))
 
@@ -157,10 +175,11 @@ def fn_type(arg_type: Type, ret_type: Type) -> TypeOp:
     return TypeOp('->', [arg_type, ret_type])
 
 
+NeverType = NeverTypeT()
 UnitType = TypeOp('unit', [])
 IntType = TypeOp('int', [])
 BoolType = TypeOp('bool', [])
-
+StrType = TypeOp('str', [])
 
 @dataclass
 class TypeScheme:
@@ -206,6 +225,10 @@ def unify(t1: Type, t2: Type):
             return unify_type_var(t1, t2)
         elif isinstance(t2, TypeVar):
             return unify_type_var(t2, t1)
+        elif isinstance(t1, NeverTypeT):
+            return t2
+        elif isinstance(t2, NeverTypeT):
+            return t1
         else:
             fresh_exception = True
             raise TyckException(f'错误：无法归一化类型 {str(t1)} 和 {str(t2)}')
@@ -258,6 +281,14 @@ class ExprLitBool(Expr):
 
 
 @dataclass
+class ExprLitStr(Expr):
+    value: str
+
+    def __str__(self) -> str:
+        return f'"{self.value}"'
+
+
+@dataclass
 class ExprVar(Expr):
     x: str
 
@@ -285,7 +316,7 @@ class ExprApp(Expr):
 
     def __str__(self) -> str:
         e1 = f'({str(self.e1)})' if self.e1.need_quote() else str(self.e1)
-        e2 = f'({str(self.e2)})' if self.e1.need_quote() else str(self.e2)
+        e2 = f'({str(self.e2)})' if self.e2.need_quote() else str(self.e2)
         return f'{e1} {e2}'
 
     def need_quote(self) -> bool:
@@ -308,15 +339,60 @@ class ExprLet(Expr):
 
 
 @dataclass
+class ExprStmt(Expr):
+    stmts: list[Expr]
+
+    def __str__(self) -> str:
+        ret = ''
+        for (idx, stmt) in enumerate(self.stmts):
+            ret += str(stmt)
+            if idx != len(self.stmts) - 1:
+                ret += '; '
+        return ret
+
+    def need_quote(self) -> bool:
+        return True
+
+
+@dataclass
+class ExprReturn(Expr):
+    e: Expr | None
+
+    def __str__(self) -> str:
+        return f'return {str(self.e)}' if self.e is not None else 'return'
+
+    def need_quote(self) -> bool:
+        return True
+
+
+@dataclass
+class ExprIf(Expr):
+    e1: Expr
+    e2: Expr
+    e3: Expr
+
+    def __str__(self) -> str:
+        e1 = f'({str(self.e1)})' if self.e1.need_quote() else str(self.e1)
+        e2 = f'({str(self.e2)})' if self.e2.need_quote() else str(self.e2)
+        e3 = f'({str(self.e3)})' if self.e3.need_quote() else str(self.e3)
+        return f'if {e1} then {e2} else {e3}'
+
+    def need_quote(self) -> bool:
+        return True
+
+
+@dataclass
 class TypeEnv:
     parent: TypeEnv | None
     vars: dict[str, TypeScheme]
     non_generic_type_vars: set[TypeVar]
+    return_tys: list[Type]
 
     def __init__(self, parent: TypeEnv | None = None):
         self.parent = parent
         self.vars = {}
         self.non_generic_type_vars = set()
+        self.return_tys = []
 
     def lookup(self, var_name: str) -> TypeScheme | None:
         if var_name in self.vars:
@@ -343,6 +419,8 @@ def j(env: TypeEnv, expr: Expr) -> Type:
             return IntType
         elif isinstance(expr, ExprLitBool):
             return BoolType
+        elif isinstance(expr, ExprLitStr):
+            return StrType
         elif isinstance(expr, ExprVar):
             scheme = env.lookup(expr.x)
             if scheme is not None:
@@ -355,6 +433,10 @@ def j(env: TypeEnv, expr: Expr) -> Type:
             env1.vars[expr.x] = TypeScheme([], beta)
             env1.non_generic_type_vars.add(beta)
             t1 = j(env1, expr.body)
+            for ty in env1.return_tys:
+                unify(t1, ty)
+                if isinstance(t1, NeverTypeT) and not isinstance(ty, NeverTypeT):
+                    t1 = ty
             return fn_type(beta, t1)
         elif isinstance(expr, ExprApp):
             pi = TypeVar(Pi)
@@ -368,6 +450,26 @@ def j(env: TypeEnv, expr: Expr) -> Type:
             x_scheme = generalize(env1, t1)
             env1.vars[expr.x] = x_scheme
             return j(env1, expr.e2)
+        elif isinstance(expr, ExprStmt):
+            for (idx, stmt) in enumerate(expr.stmts):
+                t = j(env, stmt)
+                if idx == len(expr.stmts) - 1:
+                    return t
+            assert False
+        elif isinstance(expr, ExprReturn):
+            if expr.e is not None:
+                t_ret = j(env, expr.e)
+            else:
+                t_ret = UnitType
+            env.return_tys.append(t_ret)
+            return NeverType
+        elif isinstance(expr, ExprIf):
+            t1 = j(env, expr.e1)
+            t2 = j(env, expr.e2)
+            t3 = j(env, expr.e3)
+            unify(t1, BoolType)
+            unify(t2, t3)
+            return t2
         else:
             raise Exception(f'表达式 {expr} 的类型未知')
     except TyckException as e:
@@ -387,9 +489,14 @@ def generalize(env: TypeEnv, t: Type) -> TypeScheme:
     return TypeScheme(filtered_type_vars, t)
 
 
-def try_inference(expr: Expr):
+def default_env() -> TypeEnv:
     env = TypeEnv()
     env.vars['square'] = TypeScheme([], fn_type(IntType, IntType))
+    env.vars['print'] = TypeScheme([], fn_type(StrType, UnitType))
+    return env
+
+
+def try_inference(expr: Expr, env: TypeEnv = default_env()):
 
     print(f'j(Γ, {str(expr)})')
     try:
@@ -400,39 +507,43 @@ def try_inference(expr: Expr):
         print(f'=> {e.text}')
 
 
-# 成功：let id = \x. x in (id square) (id 5)
-try_inference(ExprLet(
-    'id', ExprAbs('x', ExprVar('x')),
-    ExprApp(ExprApp(ExprVar('id'), ExprVar('square')), ExprApp(ExprVar('id'), ExprLitInt(5)))
-))
-print('------\n')
-
-# 成功：let id = \x. x in (id id) (id id)
-try_inference(ExprLet(
-    'id', ExprAbs('x', ExprVar('x')),
-    ExprApp(ExprApp(ExprVar('id'), ExprVar('id')), ExprApp(ExprVar('id'), ExprVar('id')))
-))
-print('------\n')
-
-# 失败，因为存在无限类型：let id = \x. x in (\f. f f) id
-try_inference(ExprLet(
-    'id', ExprAbs('x', ExprVar('x')),
-    ExprApp(ExprAbs('f', ExprApp(ExprVar('f'), ExprVar('f'))), ExprVar('id'))
-))
-print('------\n')
-
-# 失败，因为 lambda 引入的变量没有多态性：(\id. (id square) (id 5)) (\x. x)
-try_inference(ExprApp(
-    ExprAbs('id', ExprApp(ExprApp(ExprVar('id'), ExprVar('square')), ExprApp(ExprVar('id'), ExprLitInt(5)))),
-    ExprAbs('x', ExprVar('x'))
-))
-print('------\n')
-
-# 失败，因为 let 绑定的变量来自 lambda，同样没有多态性：(\id. (let id1 = id in (id1 square) (id1 5))) (\x. x)
-try_inference(ExprApp(
-    ExprAbs('id', ExprLet(
-        'id1', ExprVar('id'),
-        ExprApp(ExprApp(ExprVar('id1'), ExprVar('square')), ExprApp(ExprVar('id1'), ExprLitInt(5)))
+# let f = \x. if x then 10 else 20 in f true
+e1 = ExprLet(
+    'f',
+    ExprAbs('x', ExprIf(
+        ExprVar('x'),
+        ExprLitInt(10),
+        ExprLitInt(20),
     )),
-    ExprAbs('x', ExprVar('x'))
-))
+    ExprApp(ExprVar('f'), ExprLitBool(True))
+)
+try_inference(e1)
+
+# let f = \x. if x then (return 0) else 42 in f true
+e2 = ExprLet(
+    'f',
+    ExprAbs('x', ExprIf(
+        ExprVar('x'),
+        ExprReturn(ExprLitInt(0)),
+        ExprLitInt(42),
+    )),
+    ExprApp(ExprVar('f'), ExprLitBool(True))
+)
+try_inference(e2)
+
+# let f = \x. if (cond x) then 42 else (print "does not satisfy"; return 0) in f 114
+e2 = ExprLet(
+    'f',
+    ExprAbs('x', ExprIf(
+        ExprApp(ExprVar("cond"), ExprVar('x')),
+        ExprLitInt(42),
+        ExprStmt([
+            ExprApp(ExprVar("print"), ExprLitStr("does not satisfy")),
+            ExprReturn(ExprLitInt(0))
+        ])
+    )),
+    ExprApp(ExprVar('f'), ExprLitBool(True))
+)
+env1 = default_env()
+env1.vars['cond'] = TypeScheme([], fn_type(IntType, BoolType))
+try_inference(e2, env1)
