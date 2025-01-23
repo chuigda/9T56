@@ -164,6 +164,9 @@ class TypeScheme:
         self.free_accel = set(free)
 
     def __str__(self) -> str:
+        if len(self.free) == 0:
+            return str(self.ty)
+
         ret = ''
         for item in self.free:
             ret += '∀' + str(item)
@@ -427,7 +430,7 @@ def generalize(env: TypeEnv, t: Type) -> TypeScheme:
 
     type_vars_in_env_set: set[TypeVar] = set(type_vars_in_env)
     filtered_type_vars: list[TypeVar] = []
-    for type_var in type_vars:
+    for type_var in set(type_vars):
         if type_var not in type_vars_in_env_set:
             filtered_type_vars.append(type_var)
 
@@ -441,7 +444,8 @@ def try_inference(expr: Expr):
     print(f'w(Γ, {str(expr)})')
     try:
         s, t = w(env, expr)
-        print(f'=> t = {str(t)}, S = {str(s)}')
+        t_scheme = generalize(env, t)
+        print(f'=> t = {str(t_scheme)}, S = {str(s)}')
     except TyckException as e:
         print(f'=> {e.text}')
 
