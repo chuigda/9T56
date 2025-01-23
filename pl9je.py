@@ -511,7 +511,7 @@ e2 = ExprLet(
 try_inference(e2)
 
 # let f = \x. if (cond x) then 42 else (print "does not satisfy"; return 0) in f 114
-e2 = ExprLet(
+e3 = ExprLet(
     'f',
     ExprAbs('x', ExprIf(
         ExprApp(ExprVar("cond"), ExprVar('x')),
@@ -525,4 +525,20 @@ e2 = ExprLet(
 )
 env1 = default_env()
 env1.vars['cond'] = TypeScheme([], fn_type(IntType, BoolType))
-try_inference(e2, env1)
+try_inference(e3, env1)
+
+# fail case
+# let f = \x. if (cond x) then 42 else (print "does not satisfy"; return) in f 114
+e4 = ExprLet(
+    'f',
+    ExprAbs('x', ExprIf(
+        ExprApp(ExprVar("cond"), ExprVar('x')),
+        ExprLitInt(42),
+        ExprStmt([
+            ExprApp(ExprVar("print"), ExprLitStr("does not satisfy")),
+            ExprReturn(None)
+        ])
+    )),
+    ExprApp(ExprVar('f'), ExprLitBool(True))
+)
+try_inference(e4, env1)
