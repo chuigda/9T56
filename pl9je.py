@@ -9,6 +9,7 @@ from abc import abstractmethod
 from dataclasses import dataclass
 
 from syntax import *
+from parse import tokenize, parse
 
 
 class Type:
@@ -256,7 +257,7 @@ class TypeEnv:
         self.parent = parent
         self.vars = {}
         self.non_generic_type_vars = set()
-        self.return_tys = []
+        self.return_ty = None
 
     def lookup(self, var_name: str) -> TypeScheme | None:
         if var_name in self.vars:
@@ -275,6 +276,11 @@ class TypeEnv:
         if v in self.non_generic_type_vars:
             return True
         return self.parent.is_non_generic(v) if self.parent is not None else False
+
+    def closest_return_ty(self) -> TypeVar | None:
+        if self.return_ty is not None:
+            return self.return_ty
+        return self.parent.closest_return_ty() if self.parent is not None else None
 
 
 def j(env: TypeEnv, expr: Expr) -> Type:
@@ -323,13 +329,14 @@ def j(env: TypeEnv, expr: Expr) -> Type:
                     return t
             assert False
         elif isinstance(expr, ExprReturn):
-            if env.return_ty is None:
+            return_ty = env.closest_return_ty()
+            if return_ty is None:
                 raise TyckException('错误：return 只能在函数体内使用')
             if expr.e is not None:
                 t_ret = j(env, expr.e)
             else:
                 t_ret = UnitType
-            unify(env.return_ty, t_ret)
+            unify(return_ty, t_ret)
             return TypeVar(Eta)
         elif isinstance(expr, ExprLetRec):
             env1 = TypeEnv(env)
@@ -376,144 +383,32 @@ def default_env() -> TypeEnv:
     env = TypeEnv()
     env.vars['square'] = TypeScheme([], fn_type(IntType, IntType))
     env.vars['print'] = TypeScheme([], fn_type(StrType, UnitType))
+
+    env.vars['condint'] = TypeScheme([], fn_type(IntType, BoolType))
     return env
 
 
 def try_inference(expr: Expr, env: TypeEnv = default_env()):
-    print(f'j(Γ, {expr})')
     try:
         t = j(env, expr)
         t_scheme = generalize(env, t)
-        print(f'=> t = {t_scheme}')
+        print(f'j(Γ, {expr}) = {t_scheme}')
     except TyckException as e:
-        print(f'=> {e.text}')
-    print('------------\n')
+        print(f'j(Γ, {expr})\n错误: {e.text}')
+    print()
 
-
-r'''
-# let f = \x. if x then 10 else 20 in f true
-e1 = ExprLet(
-    'f',
-    ExprAbs('x', ExprIf(
-        ExprVar('x'),
-        ExprLitInt(10),
-        ExprLitInt(20),
-    )),
-    ExprApp(ExprVar('f'), ExprLitBool(True))
-)
-try_inference(e1)
-
-# let f = \x. if x then (return 0) else 42 in f true
-e2 = ExprLet(
-    'f',
-    ExprAbs('x', ExprIf(
-        ExprVar('x'),
-        ExprReturn(ExprLitInt(0)),
-        ExprLitInt(42),
-    )),
-    ExprApp(ExprVar('f'), ExprLitBool(True))
-)
-try_inference(e2)
-
-# let f = \x. if (cond x) then 42 else (print "does not satisfy"; return 0) in f 114
-e3 = ExprLet(
-    'f',
-    ExprAbs('x', ExprIf(
-        ExprApp(ExprVar("cond"), ExprVar('x')),
-        ExprLitInt(42),
-        ExprStmt([
-            ExprApp(ExprVar("print"), ExprLitStr("does not satisfy")),
-            ExprReturn(ExprLitInt(0))
-        ])
-    )),
-    ExprApp(ExprVar('f'), ExprLitBool(True))
-)
-env1 = default_env()
-env1.vars['cond'] = TypeScheme([], fn_type(IntType, BoolType))
-env1.vars['zero'] = TypeScheme([], fn_type(IntType, BoolType))
-env1.vars['dec'] = TypeScheme([], fn_type(IntType, IntType))
-env1.vars['times'] = TypeScheme([], fn_type(IntType, fn_type(IntType, IntType)))
-try_inference(e3, env1)
-
-# fail case
-# let f = \x. if (cond x) then 42 else (print "does not satisfy"; return) in f 114
-e4 = ExprLet(
-    'f',
-    ExprAbs('x', ExprIf(
-        ExprApp(ExprVar("cond"), ExprVar('x')),
-        ExprLitInt(42),
-        ExprStmt([
-            ExprApp(ExprVar("print"), ExprLitStr("does not satisfy")),
-            ExprReturn(None)
-        ])
-    )),
-    ExprApp(ExprVar('f'), ExprLitBool(True))
-)
-try_inference(e4, env1)
-'''
-
-# let id = \x. x in id
-# e5 = ExprLet('id', ExprAbs('x', ExprVar('x')), ExprVar('id'))
-# try_inference(e5)
-
-# let id2 = \x. x
-#  in let id = \x. id2 x
-#      in id
-
-# let id2 = \x. x in let id = \x. id2 x in id
-# e6 = ExprLet(
-#     'id2', ExprAbs('x', ExprVar('x')),
-#     ExprLet(
-#         'id', ExprAbs('x', ExprApp(ExprVar('id2'), ExprVar('x'))),
-#         ExprVar('id')
-#     )
-# )
-# try_inference(e6)
-
-# env1 = default_env()
-# env1.vars['zero'] = TypeScheme([], fn_type(IntType, BoolType))
-# env1.vars['dec'] = TypeScheme([], fn_type(IntType, IntType))
-# env1.vars['times'] = TypeScheme([], fn_type(IntType, fn_type(IntType, IntType)))
-# e7 = ExprLetRec(
-#     [
-#         ('fact', ExprAbs('x', ExprIf(
-#             ExprApp(ExprVar('zero'), ExprVar('x')),
-#             ExprReturn(ExprLitInt(1)),
-#             ExprApp(
-#                 ExprApp(ExprVar('times'), ExprVar('x')),
-#                 ExprApp(ExprVar('fact'), ExprApp(ExprVar('dec'), ExprVar('x')))
-#             )
-#         )))
-#     ],
-#     ExprVar('fact')
-# )
-# try_inference(e7, env1)
-
-# let rec id = \x. id2 x;
-#         id2 = \x. x
-# in id
-e8 = ExprLetRec(
-    [
-        ('id', ExprAbs('x', ExprApp(ExprVar('id2'), ExprVar('x')))),
-        ('id2', ExprAbs('x', ExprVar('x'))),
-    ],
-    ExprVar('id')
-)
-try_inference(e8)
-
-# let rec id = \x. id x
-# in id
-# (gives desired fake never type, but in a weird symbol)
-e9 = ExprLetRec(
-    [
-        ('id', ExprAbs('x', ExprApp(ExprVar('id2'), ExprVar('x')))),
-        ('id2', ExprAbs('x', ExprApp(ExprVar('id'), ExprVar('x'))))
-    ],
-    ExprVar('id')
-)
-try_inference(e9)
-
-try_inference(ExprLetRec(
-    [('id', ExprAbs('x', ExprVar('x')))],
-    ExprApp(ExprApp(ExprVar('id'), ExprVar('id')), ExprApp(ExprVar('id'), ExprVar('id')))
-))
+try_inference(parse(tokenize('let rec f = \\x. x, g = f in g')))
+try_inference(parse(tokenize(r'''
+let rec f = \x.
+    let ret = if (condint x) then
+            (print "电灯熄灭 物换星移 移牛入海");
+            (return 42)
+        else
+            (print "独脚大盗 百万富翁 摸爬滚打");
+            x
+        in
+            (print "黑暗好像 一颗巨石 按在胸口");
+            ret,
+    g = f
+in g
+''')))
