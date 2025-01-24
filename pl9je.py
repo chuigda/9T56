@@ -360,27 +360,6 @@ class ExprIf(Expr):
 
 
 @dataclass
-class ExprLetRec(Expr):
-    decls: list[Tuple[str, Expr]]
-    body: Expr
-
-    def __str__(self) -> str:
-        ret = 'let rec '
-        for (idx, (name, expr)) in enumerate(self.decls):
-            expr_s = f'({str(expr)}))' if expr.need_quote() else str(expr)
-            ret += f'{name} = {expr_s}'
-            if idx != len(self.decls) - 1:
-                ret += '; '
-        ret += ' in '
-        body_s = f'({str(self.body)})' if self.body.need_quote() else str(self.body)
-        ret += body_s
-        return ret
-
-    def need_quote(self):
-        return True
-
-
-@dataclass
 class TypeEnv:
     parent: TypeEnv | None
     vars: dict[str, TypeScheme]
@@ -433,8 +412,8 @@ def j(env: TypeEnv, expr: Expr) -> Type:
             env1.non_generic_type_vars.add(beta)
             env1.return_ty = TypeVar(Eta)
             t1 = j(env1, expr.body)
-            unify(t1, env1.return_ty)
-            return fn_type(beta, t1.prune())
+            # unify(env1.return_ty, t1)
+            return fn_type(beta, t1)
         elif isinstance(expr, ExprApp):
             pi = TypeVar(Pi)
             t1 = j(env, expr.e1)
@@ -460,7 +439,7 @@ def j(env: TypeEnv, expr: Expr) -> Type:
                 t_ret = j(env, expr.e)
             else:
                 t_ret = UnitType
-            unify(t_ret, env.return_ty)
+            unify(env.return_ty, t_ret)
             return TypeVar(Eta)
         elif isinstance(expr, ExprIf):
             t1 = j(env, expr.e1)
@@ -469,19 +448,6 @@ def j(env: TypeEnv, expr: Expr) -> Type:
             unify(t1, BoolType)
             unify(t2, t3)
             return t2
-        elif isinstance(expr, ExprLetRec):
-            env1 = TypeEnv(env)
-            type_vars = []
-            for (name, _) in expr.decls:
-                tvar = TypeVar(Gamma)
-                type_vars.append(tvar)
-                env1.vars[name] = TypeScheme([], tvar)
-                env1.non_generic_type_vars.add(tvar)
-            for (idx, (name, decl)) in enumerate(expr.decls):
-                actual_ty = j(env1, decl)
-                unify(type_vars[idx], actual_ty)
-                env1.vars[name] = generalize(env1, actual_ty)
-            return j(env1, expr.body)
         else:
             raise Exception(f'表达式 {expr} 的类型未知')
     except TyckException as e:
@@ -579,53 +545,6 @@ e4 = ExprLet(
 )
 try_inference(e4, env1)
 
-# let rec fact = \x. if (zero x) then (return 1) else ((times x) (fact (dec 1)))
-e5 = ExprLetRec(
-    [
-        ('fact', ExprAbs('x', ExprIf(
-            ExprApp(ExprVar('zero'), ExprVar('x')),
-            ExprReturn(ExprLitInt(1)),
-            ExprApp(
-                ExprApp(ExprVar('times'), ExprVar('x')),
-                ExprApp(ExprVar('fact'), ExprApp(ExprVar('dec'), ExprVar('x')))
-            )
-        )))
-    ],
-    ExprApp(ExprVar('fact'), ExprLitInt(5))
-)
-try_inference(e5, env1)
-
-# let rec fun1 = \x. if (cond1 x) then 42 else (fun2 x);
-#         fun2 = \x. if (cond2 x) then 13 else (fun1 x)
-# in fun1 114514
-env2 = default_env()
-env2.vars['cond1'] = TypeScheme([], fn_type(IntType, BoolType))
-env2.vars['cond2'] = TypeScheme([], fn_type(IntType, BoolType))
-e6 = ExprLetRec(
-    [
-        ('fun1', ExprAbs('x', ExprIf(
-            ExprApp(ExprVar('cond1'), ExprVar('x')),
-            ExprLitInt(42),
-            ExprApp(ExprVar('fun2'), ExprVar('x'))
-        ))),
-        ('fun2', ExprAbs('x', ExprIf(
-            ExprApp(ExprVar('cond2'), ExprVar('x')),
-            ExprLitInt(13),
-            ExprApp(ExprVar('fun1'), ExprVar('x'))
-        )))
-    ],
-    ExprVar('fun1')
-)
-try_inference(e6, env2)
-
-# let rec id = \x. id2 x;
-#         id2 = \x. x;
-# in id
-e7 = ExprLetRec(
-    [
-        ('id', ExprAbs('x', ExprApp(ExprVar('id2'), ExprVar('x')))),
-        ('id2', ExprAbs('x', ExprVar('x'))),
-    ],
-    ExprVar('id')
-)
-try_inference(e7)
+# let id = \x. x in id
+e5 = ExprLet('id', ExprAbs('x', ExprVar('x')), ExprVar('id'))
+try_inference(e5)
