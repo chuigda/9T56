@@ -52,8 +52,8 @@ class TypeVar(Type):
         self.resolve = None
 
     def __str__(self) -> str:
-        if self.greek == Eta:
-            return '!'
+        # if self.greek == Eta:
+        #     return '!'
         return self.greek + str(self.timestamp)
 
     def __eq__(self, value: object) -> bool:
@@ -509,7 +509,6 @@ def default_env() -> TypeEnv:
 
 
 def try_inference(expr: Expr, env: TypeEnv = default_env()):
-
     print(f'j(Γ, {str(expr)})')
     try:
         t = j(env, expr)
@@ -517,6 +516,7 @@ def try_inference(expr: Expr, env: TypeEnv = default_env()):
         print(f'=> t = {str(t_scheme)}')
     except TyckException as e:
         print(f'=> {e.text}')
+    print('------------\n')
 
 
 # let f = \x. if x then 10 else 20 in f true
@@ -594,3 +594,38 @@ e5 = ExprLetRec(
     ExprApp(ExprVar('fact'), ExprLitInt(5))
 )
 try_inference(e5, env1)
+
+# let rec fun1 = \x. if (cond1 x) then 42 else (fun2 x);
+#         fun2 = \x. if (cond2 x) then 13 else (fun1 x)
+# in fun1 114514
+env2 = default_env()
+env2.vars['cond1'] = TypeScheme([], fn_type(IntType, BoolType))
+env2.vars['cond2'] = TypeScheme([], fn_type(IntType, BoolType))
+e6 = ExprLetRec(
+    [
+        ('fun1', ExprAbs('x', ExprIf(
+            ExprApp(ExprVar('cond1'), ExprVar('x')),
+            ExprLitInt(42),
+            ExprApp(ExprVar('fun2'), ExprVar('x'))
+        ))),
+        ('fun2', ExprAbs('x', ExprIf(
+            ExprApp(ExprVar('cond2'), ExprVar('x')),
+            ExprLitInt(13),
+            ExprApp(ExprVar('fun1'), ExprVar('x'))
+        )))
+    ],
+    ExprVar('fun1')
+)
+try_inference(e6, env2)
+
+# let rec id = \x. id2 x;
+#         id2 = \x. x;
+# in id
+e7 = ExprLetRec(
+    [
+        ('id', ExprAbs('x', ExprApp(ExprVar('id2'), ExprVar('x')))),
+        ('id2', ExprAbs('x', ExprVar('x'))),
+    ],
+    ExprVar('id')
+)
+try_inference(e7)
