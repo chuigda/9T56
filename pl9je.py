@@ -413,7 +413,7 @@ def j(env: TypeEnv, expr: Expr) -> Type:
             env1.return_ty = TypeVar(Eta)
             t1 = j(env1, expr.body)
             unify(env1.return_ty, t1)
-            return fn_type(beta, t1)
+            return fn_type(beta, t1.prune())
         elif isinstance(expr, ExprApp):
             pi = TypeVar(Pi)
             t1 = j(env, expr.e1)
