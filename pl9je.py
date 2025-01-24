@@ -95,10 +95,6 @@ Tau = 'τ'
 Eta = 'η'
 
 
-def pseudo_never_type() -> TypeVar:
-    return TypeVar(Eta)
-
-
 @dataclass
 class TypeOp(Type):
     op: str
@@ -165,6 +161,7 @@ UnitType = TypeOp('unit', [])
 IntType = TypeOp('int', [])
 BoolType = TypeOp('bool', [])
 StrType = TypeOp('str', [])
+
 
 @dataclass
 class TypeScheme:
@@ -367,7 +364,7 @@ class TypeEnv:
     parent: TypeEnv | None
     vars: dict[str, TypeScheme]
     non_generic_type_vars: set[TypeVar]
-    return_tys: list[Type]
+    return_ty: TypeVar | None
 
     def __init__(self, parent: TypeEnv | None = None):
         self.parent = parent
@@ -413,9 +410,9 @@ def j(env: TypeEnv, expr: Expr) -> Type:
             env1 = TypeEnv(env)
             env1.vars[expr.x] = TypeScheme([], beta)
             env1.non_generic_type_vars.add(beta)
+            env1.return_ty = TypeVar(Eta)
             t1 = j(env1, expr.body)
-            for ty in env1.return_tys:
-                unify(t1, ty)
+            unify(t1, env1.return_ty)
             return fn_type(beta, t1.prune())
         elif isinstance(expr, ExprApp):
             pi = TypeVar(Pi)
@@ -436,12 +433,14 @@ def j(env: TypeEnv, expr: Expr) -> Type:
                     return t
             assert False
         elif isinstance(expr, ExprReturn):
+            if env.return_ty is None:
+                raise TyckException('错误：return 只能在函数体内使用')
             if expr.e is not None:
                 t_ret = j(env, expr.e)
             else:
                 t_ret = UnitType
-            env.return_tys.append(t_ret)
-            return pseudo_never_type()
+            unify(t_ret, env.return_ty)
+            return TypeVar(Eta)
         elif isinstance(expr, ExprIf):
             t1 = j(env, expr.e1)
             t2 = j(env, expr.e2)
