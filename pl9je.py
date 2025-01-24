@@ -7,6 +7,7 @@
 from __future__ import annotations
 from abc import abstractmethod
 from dataclasses import dataclass
+from typing import Tuple
 
 
 class Type:
@@ -359,6 +360,27 @@ class ExprIf(Expr):
 
 
 @dataclass
+class ExprLetRec(Expr):
+    decls: list[Tuple[str, Expr]]
+    body: Expr
+
+    def __str__(self) -> str:
+        ret = 'let rec '
+        for (idx, (name, expr)) in enumerate(self.decls):
+            expr_s = f'({str(expr)}))' if expr.need_quote() else str(expr)
+            ret += f'{name} = {expr_s}'
+            if idx != len(self.decls) - 1:
+                ret += '; '
+        ret += ' in '
+        body_s = f'({str(self.body)})' if self.body.need_quote() else str(self.body)
+        ret += body_s
+        return ret
+
+    def need_quote(self):
+        return True
+
+
+@dataclass
 class TypeEnv:
     parent: TypeEnv | None
     vars: dict[str, TypeScheme]
@@ -447,6 +469,19 @@ def j(env: TypeEnv, expr: Expr) -> Type:
             unify(t1, BoolType)
             unify(t2, t3)
             return t2
+        elif isinstance(expr, ExprLetRec):
+            env1 = TypeEnv(env)
+            type_vars = []
+            for (name, _) in expr.decls:
+                tvar = TypeVar(Gamma)
+                type_vars.append(tvar)
+                env1.vars[name] = TypeScheme([], tvar)
+                env1.non_generic_type_vars.add(tvar)
+            for (idx, (name, decl)) in enumerate(expr.decls):
+                actual_ty = j(env1, decl)
+                unify(type_vars[idx], actual_ty)
+                env1.vars[name] = generalize(env1, actual_ty)
+            return j(env1, expr.body)
         else:
             raise Exception(f'表达式 {expr} 的类型未知')
     except TyckException as e:
@@ -523,6 +558,9 @@ e3 = ExprLet(
 )
 env1 = default_env()
 env1.vars['cond'] = TypeScheme([], fn_type(IntType, BoolType))
+env1.vars['zero'] = TypeScheme([], fn_type(IntType, BoolType))
+env1.vars['dec'] = TypeScheme([], fn_type(IntType, IntType))
+env1.vars['times'] = TypeScheme([], fn_type(IntType, fn_type(IntType, IntType)))
 try_inference(e3, env1)
 
 # fail case
@@ -540,3 +578,19 @@ e4 = ExprLet(
     ExprApp(ExprVar('f'), ExprLitBool(True))
 )
 try_inference(e4, env1)
+
+# let rec fact = \x. if (zero x) then (return 1) else ((times x) (fact (dec 1)))
+e5 = ExprLetRec(
+    [
+        ('fact', ExprAbs('x', ExprIf(
+            ExprApp(ExprVar('zero'), ExprVar('x')),
+            ExprReturn(ExprLitInt(1)),
+            ExprApp(
+                ExprApp(ExprVar('times'), ExprVar('x')),
+                ExprApp(ExprVar('fact'), ExprApp(ExprVar('dec'), ExprVar('x')))
+            )
+        )))
+    ],
+    ExprApp(ExprVar('fact'), ExprLitInt(5))
+)
+try_inference(e5, env1)
