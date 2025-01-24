@@ -412,12 +412,12 @@ def j(env: TypeEnv, expr: Expr) -> Type:
             env1.return_ty = TypeVar(Eta)
             t1 = j(env1, expr.body)
             unify(env1.return_ty, t1)
-            return fn_type(beta, t1.prune())
+            return fn_type(beta.prune(), t1.prune())
         elif isinstance(expr, ExprApp):
             pi = TypeVar(Pi)
             t1 = j(env, expr.e1)
             t2 = j(env, expr.e2)
-            unify(t1, fn_type(t2, pi))
+            unify(fn_type(t2, pi), t1)
             return pi.prune()
         elif isinstance(expr, ExprLet):
             env1 = TypeEnv(env)
@@ -484,6 +484,7 @@ def try_inference(expr: Expr, env: TypeEnv = default_env()):
     print('------------\n')
 
 
+r'''
 # let f = \x. if x then 10 else 20 in f true
 e1 = ExprLet(
     'f',
@@ -543,7 +544,21 @@ e4 = ExprLet(
     ExprApp(ExprVar('f'), ExprLitBool(True))
 )
 try_inference(e4, env1)
+'''
 
 # let id = \x. x in id
-e5 = ExprLet('id', ExprAbs('x', ExprVar('x')), ExprVar('id'))
-try_inference(e5)
+# e5 = ExprLet('id', ExprAbs('x', ExprVar('x')), ExprVar('id'))
+# try_inference(e5)
+
+# let id2 = \x. x
+#  in let id = \x. id2 x
+#      in id
+
+e6 = ExprLet(
+    'id2', ExprAbs('x', ExprVar('x')),
+    ExprLet(
+        'id', ExprAbs('x', ExprApp(ExprVar('id2'), ExprVar('x'))),
+        ExprVar('id')
+    )
+)
+try_inference(e6)
