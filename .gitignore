@@ -33,3 +33,7 @@ build/
 
 ### Typst build output ###
 *.pdf
+
+### Python ###
+__pycache__/
+.venv

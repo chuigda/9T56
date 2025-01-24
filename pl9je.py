@@ -7,7 +7,8 @@
 from __future__ import annotations
 from abc import abstractmethod
 from dataclasses import dataclass
-from typing import Tuple
+
+from plsyntax import *
 
 
 class Type:
@@ -111,7 +112,7 @@ class TypeOp(Type):
         if self.op == '*' or self.op == '->':
             for (idx, arg) in enumerate(self.args):
                 if arg.need_quote():
-                    ret += '(' + str(arg) + ')'
+                    ret += f'({arg})'
                 else:
                     ret += str(arg)
                 if idx != len(self.args) - 1:
@@ -120,7 +121,7 @@ class TypeOp(Type):
             ret += self.op
             for (idx, arg) in enumerate(self.args):
                 if arg.need_quote():
-                    ret += '(' + str(arg) + ')'
+                    ret += f'({arg})'
                 else:
                     ret += str(arg)
                 if idx != len(self.args) - 1:
@@ -214,10 +215,10 @@ def unify(t1: Type, t2: Type):
             return unify_type_var(t2, t1)
         else:
             fresh_exception = True
-            raise TyckException(f'错误：无法归一化类型 {str(t1)} 和 {str(t2)}')
+            raise TyckException(f'错误：无法归一化类型 {t1} 和 {t2}')
     except TyckException as e:
         if not fresh_exception:
-            e.text += f'\n  - 当归一化类型 {str(t1)} 和 {str(t2)} 时发生'
+            e.text += f'\n  - 当归一化类型 {t1} 和 {t2} 时发生'
         raise e
 
 
@@ -225,166 +226,23 @@ def unify_type_var(t1: TypeVar, t2: Type):
     if t1 == t2:
         return
     if t2.contains_type_var(t1):
-        raise TyckException(f'错误：无法归一化类型变量 {str(t1)} 和类型 {str(t2)}：后者中存在对前者的引用，这是不允许的')
+        raise TyckException(f'错误：无法归一化类型变量 {t1} 和类型 {t2}：后者中存在对前者的引用，这是不允许的')
     t1.resolve = t2
 
 
 def unify_type_op(t1: TypeOp, t2: TypeOp):
     if t1.op != t2.op:
-        raise TyckException(f'错误：无法归一化类型算子 {str(t1)} 和 {str(t2)}（运算符不同）')
+        raise TyckException(f'错误：无法归一化类型算子 {t1} 和 {t2}（运算符不同）')
 
     if len(t1.args) != len(t2.args):
-        raise TyckException(f'错误：无法归一化类型算子 {str(t1)} 和 {str(t2)}（类型算子的参数数目不同）')
+        raise TyckException(f'错误：无法归一化类型算子 {t1} 和 {t2}（类型算子的参数数目不同）')
 
     for idx in range(0, len(t1.args)):
         try:
             unify(t1.args[idx], t2.args[idx])
         except TyckException as e:
-            e.text += f'\n  - 当归一化类型算子的第 {str(idx + 1)} 个参数（{str(t1.args[idx])} 和 {str(t2.args[idx])}）时发生'
+            e.text += f'\n  - 当归一化类型算子的第 {idx + 1} 个参数（{t1.args[idx]} 和 {t2.args[idx]}）时发生'
             raise e
-
-
-class Expr:
-    def need_quote(self) -> bool:
-        return False
-
-
-@dataclass
-class ExprLitInt(Expr):
-    value: int
-
-    def __str__(self) -> str:
-        return str(self.value)
-
-
-@dataclass
-class ExprLitBool(Expr):
-    value: bool
-
-    def __str__(self) -> str:
-        return str(self.value)
-
-
-@dataclass
-class ExprLitStr(Expr):
-    value: str
-
-    def __str__(self) -> str:
-        return f'"{self.value}"'
-
-
-@dataclass
-class ExprVar(Expr):
-    x: str
-
-    def __str__(self) -> str:
-        return str(self.x)
-
-
-@dataclass
-class ExprAbs(Expr):
-    x: str
-    body: Expr
-
-    def __str__(self) -> str:
-        body = f'({str(self.body)})' if self.body.need_quote() else str(self.body)
-        return f'λ{self.x}. {body}'
-
-    def need_quote(self) -> bool:
-        return True
-
-
-@dataclass
-class ExprApp(Expr):
-    e1: Expr
-    e2: Expr
-
-    def __str__(self) -> str:
-        e1 = f'({str(self.e1)})' if self.e1.need_quote() else str(self.e1)
-        e2 = f'({str(self.e2)})' if self.e2.need_quote() else str(self.e2)
-        return f'{e1} {e2}'
-
-    def need_quote(self) -> bool:
-        return True
-
-
-@dataclass
-class ExprLet(Expr):
-    x: str
-    e1: Expr
-    e2: Expr
-
-    def __str__(self) -> str:
-        e1 = f'({str(self.e1)})' if self.e1.need_quote() else str(self.e1)
-        e2 = f'({str(self.e2)})' if isinstance(self.e2, ExprLet) else str(self.e2)
-        return f'let {self.x} = {e1} in {e2}'
-
-    def need_quote(self) -> bool:
-        return True
-
-
-@dataclass
-class ExprStmt(Expr):
-    stmts: list[Expr]
-
-    def __str__(self) -> str:
-        ret = ''
-        for (idx, stmt) in enumerate(self.stmts):
-            ret += str(stmt)
-            if idx != len(self.stmts) - 1:
-                ret += '; '
-        return ret
-
-    def need_quote(self) -> bool:
-        return True
-
-
-@dataclass
-class ExprReturn(Expr):
-    e: Expr | None
-
-    def __str__(self) -> str:
-        return f'return {str(self.e)}' if self.e is not None else 'return'
-
-    def need_quote(self) -> bool:
-        return True
-
-
-@dataclass
-class ExprIf(Expr):
-    e1: Expr
-    e2: Expr
-    e3: Expr
-
-    def __str__(self) -> str:
-        e1 = f'({str(self.e1)})' if self.e1.need_quote() else str(self.e1)
-        e2 = f'({str(self.e2)})' if self.e2.need_quote() else str(self.e2)
-        e3 = f'({str(self.e3)})' if self.e3.need_quote() else str(self.e3)
-        return f'if {e1} then {e2} else {e3}'
-
-    def need_quote(self) -> bool:
-        return True
-
-
-@dataclass
-class ExprLetRec(Expr):
-    decls: list[Tuple[str, Expr]]
-    body: Expr
-
-    def __str__(self) -> str:
-        ret = 'let rec '
-        for (idx, (name, expr)) in enumerate(self.decls):
-            expr_s = f'({str(expr)}))' if expr.need_quote() else str(expr)
-            ret += f'{name} = {expr_s}'
-            if idx != len(self.decls) - 1:
-                ret += '; '
-        ret += ' in '
-        body_s = f'({str(self.body)})' if self.body.need_quote() else str(self.body)
-        ret += body_s
-        return ret
-
-    def need_quote(self):
-        return True
 
 
 @dataclass
@@ -497,7 +355,7 @@ def j(env: TypeEnv, expr: Expr) -> Type:
         else:
             raise Exception(f'表达式 {expr} 的类型未知')
     except TyckException as e:
-        e.text += f'\n  - 当检查表达式 {str(expr)} 时发生'
+        e.text += f'\n  - 当检查表达式 {expr} 时发生'
         raise e
 
 
@@ -522,11 +380,11 @@ def default_env() -> TypeEnv:
 
 
 def try_inference(expr: Expr, env: TypeEnv = default_env()):
-    print(f'j(Γ, {str(expr)})')
+    print(f'j(Γ, {expr})')
     try:
         t = j(env, expr)
         t_scheme = generalize(env, t)
-        print(f'=> t = {str(t_scheme)}')
+        print(f'=> t = {t_scheme}')
     except TyckException as e:
         print(f'=> {e.text}')
     print('------------\n')
