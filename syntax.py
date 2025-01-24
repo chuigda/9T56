@@ -1,6 +1,4 @@
 from dataclasses import dataclass
-from enum import Enum
-from typing import Tuple
 
 
 class Expr:
@@ -127,7 +125,7 @@ class ExprIf(Expr):
 
 @dataclass
 class ExprLetRec(Expr):
-    decls: list[Tuple[str, Expr]]
+    decls: list[tuple[str, Expr]]
     body: Expr
 
     def __str__(self) -> str:
@@ -144,18 +142,3 @@ class ExprLetRec(Expr):
 
     def need_quote(self):
         return True
-
-
-# - 什么年代了还在写这种传统 Parser
-# - 傻逼 Lark 和 ANTLR
-class TokenKind(Enum):
-    Int       = 1
-    Boolean   = 2
-    String    = 3
-    Ident     = 4
-    Backslash = 5
-    Dot       = 6
-    LParen    = 7
-    RParen    = 8
-    Let       = 9
-    In        = 10

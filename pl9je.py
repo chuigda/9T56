@@ -8,7 +8,7 @@ from __future__ import annotations
 from abc import abstractmethod
 from dataclasses import dataclass
 
-from plsyntax import *
+from syntax import *
 
 
 class Type:

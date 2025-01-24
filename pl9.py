@@ -3,9 +3,8 @@
 from __future__ import annotations
 from abc import abstractmethod
 from dataclasses import dataclass
-from typing import Tuple
 
-from plsyntax import Expr, ExprLitInt, ExprLitBool, ExprVar, ExprAbs, ExprApp, ExprLet
+from syntax import Expr, ExprLitInt, ExprLitBool, ExprVar, ExprAbs, ExprApp, ExprLet
 from ghaik import Greek
 
 class Type:
@@ -284,7 +283,7 @@ class TypeEnv:
 
 
 # 𝑊 :: 𝑇𝑦𝑝𝑒𝐸𝑛𝑣𝑖𝑟𝑜𝑛𝑚𝑒𝑛𝑡 × 𝐸𝑥𝑝𝑟𝑒𝑠𝑠𝑖𝑜𝑛 → 𝑆𝑢𝑏𝑠𝑡𝑖𝑡𝑢𝑡𝑖𝑜𝑛 × 𝑇𝑦𝑝𝑒
-def w(env: TypeEnv, expr: Expr) -> Tuple[Subst, Type]:
+def w(env: TypeEnv, expr: Expr) -> tuple[Subst, Type]:
     try:
         # Trivial cases (literals)
         if isinstance(expr, ExprLitInt):
