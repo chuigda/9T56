@@ -52,8 +52,8 @@ class TypeVar(Type):
         self.resolve = None
 
     def __str__(self) -> str:
-        # if self.greek == Eta:
-        #     return '!'
+        if self.greek == Eta:
+            return '!'
         return self.greek + str(self.timestamp)
 
     def __eq__(self, value: object) -> bool:
@@ -183,7 +183,8 @@ class TypeScheme:
 
         ret = ''
         for item in self.free:
-            ret += '∀' + str(item)
+            if item.greek != Eta:
+                ret += '∀' + str(item)
         ret += '. ' + str(self.ty)
         return ret
 
@@ -440,13 +441,17 @@ def j(env: TypeEnv, expr: Expr) -> Type:
             env1.return_ty = TypeVar(Eta)
             t1 = j(env1, expr.body)
             unify(env1.return_ty, t1)
-            return fn_type(beta.prune(), t1.prune())
+            return fn_type(beta, t1)
         elif isinstance(expr, ExprApp):
             pi = TypeVar(Pi)
             t1 = j(env, expr.e1)
             t2 = j(env, expr.e2)
             unify(fn_type(t2, pi), t1)
-            return pi.prune()
+            if pi.resolve is None:
+                eta = TypeVar(Eta)
+                pi.greek = Eta
+                pi.timestamp = eta.timestamp
+            return pi
         elif isinstance(expr, ExprLet):
             env1 = TypeEnv(env)
             t1 = j(env1, expr.e1)
@@ -480,7 +485,7 @@ def j(env: TypeEnv, expr: Expr) -> Type:
                 actual_ty = j(env1, decl)
                 unify(type_vars[idx], actual_ty)
             for (idx, (name, _)) in enumerate(expr.decls):
-                env1.vars[name] = generalize(env1, type_vars[idx].prune())
+                env1.vars[name] = generalize(env1, type_vars[idx])
             return j(env1, expr.body)
         elif isinstance(expr, ExprIf):
             t1 = j(env, expr.e1)
@@ -497,6 +502,7 @@ def j(env: TypeEnv, expr: Expr) -> Type:
 
 
 def generalize(env: TypeEnv, t: Type) -> TypeScheme:
+    t = t.prune()
     type_vars: list[TypeVar] = []
     t.collect_type_vars(type_vars)
 
