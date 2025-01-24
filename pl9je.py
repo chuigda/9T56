@@ -412,3 +412,4 @@ let rec f = \x.
     g = f
 in g
 ''')))
+try_inference(parse(tokenize('let id = \\x. x in (id id) (id id)')))
