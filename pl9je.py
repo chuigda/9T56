@@ -399,17 +399,17 @@ def try_inference(expr: Expr, env: TypeEnv = default_env()):
 
 try_inference(parse(tokenize('let rec f = \\x. x, g = f in g')))
 try_inference(parse(tokenize(r'''
-let rec f = \x.
-    let ret = if (condint x) then
-            (print "电灯熄灭 物换星移 移牛入海");
-            (return 42)
-        else
-            (print "独脚大盗 百万富翁 摸爬滚打");
-            x
-        in
-            (print "黑暗好像 一颗巨石 按在胸口");
-            ret,
-    g = f
-in g
+let rec g = f,
+    f = \x.
+        let ret = if (condint x) then
+                (print "电灯熄灭 物换星移 移牛入海");
+                (return 42)
+            else
+                (print "独脚大盗 百万富翁 摸爬滚打");
+                x
+            in
+                (print "黑暗好像 一颗巨石 按在胸口");
+        ret
+    in g
 ''')))
 try_inference(parse(tokenize('let id = \\x. x in (id id) (id id)')))
