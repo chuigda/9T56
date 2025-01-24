@@ -1,7 +1,7 @@
 // The project function defines how your document looks.
 // It takes your content and some metadata and formats it.
 // Go ahead and customize it to your liking!
-#let zh-fonts = ("Noto Serif", "Noto Serif SC")
+#let zh-fonts = ("Noto Serif", "Noto Serif SC", "Noto Serif CJK SC")
 
 #let project(title: "", authors: (), body) = {
   // Set the document's basic properties.
