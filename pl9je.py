@@ -7,6 +7,7 @@
 from __future__ import annotations
 from abc import abstractmethod
 from dataclasses import dataclass
+from typing import Tuple
 
 
 class Type:
@@ -142,6 +143,10 @@ class TypeOp(Type):
         return TypeOp(self.op, [arg.instantiate(free) for arg in self.args])
 
     def prune(self) -> Type:
+        if len(self.args) == 0:
+            return self
+        for idx in range(0, len(self.args)):
+            self.args[idx] = self.args[idx].prune()
         return self
 
     def need_quote(self) -> bool:
@@ -216,6 +221,8 @@ def unify(t1: Type, t2: Type):
 
 
 def unify_type_var(t1: TypeVar, t2: Type):
+    if t1 == t2:
+        return
     if t2.contains_type_var(t1):
         raise TyckException(f'错误：无法归一化类型变量 {str(t1)} 和类型 {str(t2)}：后者中存在对前者的引用，这是不允许的')
     t1.resolve = t2
@@ -359,6 +366,27 @@ class ExprIf(Expr):
 
 
 @dataclass
+class ExprLetRec(Expr):
+    decls: list[Tuple[str, Expr]]
+    body: Expr
+
+    def __str__(self) -> str:
+        ret = 'let rec '
+        for (idx, (name, expr)) in enumerate(self.decls):
+            expr_s = f'({str(expr)}))' if expr.need_quote() else str(expr)
+            ret += f'{name} = {expr_s}'
+            if idx != len(self.decls) - 1:
+                ret += '; '
+        ret += ' in '
+        body_s = f'({str(self.body)})' if self.body.need_quote() else str(self.body)
+        ret += body_s
+        return ret
+
+    def need_quote(self):
+        return True
+
+
+@dataclass
 class TypeEnv:
     parent: TypeEnv | None
     vars: dict[str, TypeScheme]
@@ -440,6 +468,20 @@ def j(env: TypeEnv, expr: Expr) -> Type:
                 t_ret = UnitType
             unify(env.return_ty, t_ret)
             return TypeVar(Eta)
+        elif isinstance(expr, ExprLetRec):
+            env1 = TypeEnv(env)
+            type_vars = []
+            for (name, _) in expr.decls:
+                tvar = TypeVar(Gamma)
+                type_vars.append(tvar)
+                env1.vars[name] = TypeScheme([], tvar)
+                env1.non_generic_type_vars.add(tvar)
+            for (idx, (_, decl)) in enumerate(expr.decls):
+                actual_ty = j(env1, decl)
+                unify(type_vars[idx], actual_ty)
+            for (idx, (name, _)) in enumerate(expr.decls):
+                env1.vars[name] = generalize(env1, type_vars[idx].prune())
+            return j(env1, expr.body)
         elif isinstance(expr, ExprIf):
             t1 = j(env, expr.e1)
             t2 = j(env, expr.e2)
@@ -554,11 +596,60 @@ try_inference(e4, env1)
 #  in let id = \x. id2 x
 #      in id
 
-e6 = ExprLet(
-    'id2', ExprAbs('x', ExprVar('x')),
-    ExprLet(
-        'id', ExprAbs('x', ExprApp(ExprVar('id2'), ExprVar('x'))),
-        ExprVar('id')
-    )
+# let id2 = \x. x in let id = \x. id2 x in id
+# e6 = ExprLet(
+#     'id2', ExprAbs('x', ExprVar('x')),
+#     ExprLet(
+#         'id', ExprAbs('x', ExprApp(ExprVar('id2'), ExprVar('x'))),
+#         ExprVar('id')
+#     )
+# )
+# try_inference(e6)
+
+# env1 = default_env()
+# env1.vars['zero'] = TypeScheme([], fn_type(IntType, BoolType))
+# env1.vars['dec'] = TypeScheme([], fn_type(IntType, IntType))
+# env1.vars['times'] = TypeScheme([], fn_type(IntType, fn_type(IntType, IntType)))
+# e7 = ExprLetRec(
+#     [
+#         ('fact', ExprAbs('x', ExprIf(
+#             ExprApp(ExprVar('zero'), ExprVar('x')),
+#             ExprReturn(ExprLitInt(1)),
+#             ExprApp(
+#                 ExprApp(ExprVar('times'), ExprVar('x')),
+#                 ExprApp(ExprVar('fact'), ExprApp(ExprVar('dec'), ExprVar('x')))
+#             )
+#         )))
+#     ],
+#     ExprVar('fact')
+# )
+# try_inference(e7, env1)
+
+# let rec id = \x. id2 x;
+#         id2 = \x. x
+# in id
+e8 = ExprLetRec(
+    [
+        ('id', ExprAbs('x', ExprApp(ExprVar('id2'), ExprVar('x')))),
+        ('id2', ExprAbs('x', ExprVar('x'))),
+    ],
+    ExprVar('id')
 )
-try_inference(e6)
+try_inference(e8)
+
+# let rec id = \x. id x
+# in id
+# (gives desired fake never type, but in a weird symbol)
+e9 = ExprLetRec(
+    [
+        ('id', ExprAbs('x', ExprApp(ExprVar('id2'), ExprVar('x')))),
+        ('id2', ExprAbs('x', ExprApp(ExprVar('id'), ExprVar('x'))))
+    ],
+    ExprVar('id')
+)
+try_inference(e9)
+
+try_inference(ExprLetRec(
+    [('id', ExprAbs('x', ExprVar('x')))],
+    ExprApp(ExprApp(ExprVar('id'), ExprVar('id')), ExprApp(ExprVar('id'), ExprVar('id')))
+))
