@@ -8,7 +8,9 @@ class Greek(Enum):
     Delta = 'δ'
     Epsilon = 'ε'
     Pi = 'π'
+    Sigma = 'σ'
     Tau = 'τ'
+    Eta = 'η'
 
     def __str__(self) -> str:
          return self.value

@@ -8,6 +8,7 @@ from __future__ import annotations
 from abc import abstractmethod
 from dataclasses import dataclass
 
+from ghaik import Greek
 from syntax import *
 from parse import tokenize, parse
 
@@ -33,16 +34,16 @@ class Type:
         return False
 
 
-global_timestamp: dict[str, int] = {}
+global_timestamp: dict[Greek, int] = {}
 
 
 @dataclass
 class TypeVar(Type):
-    greek: str
+    greek: Greek
     timestamp: int
     resolve: Type | None
 
-    def __init__(self, greek: str):
+    def __init__(self, greek: Greek):
         global global_timestamp
         self.greek = greek
         if self.greek in global_timestamp:
@@ -54,9 +55,9 @@ class TypeVar(Type):
         self.resolve = None
 
     def __str__(self) -> str:
-        if self.greek == Eta:
+        if self.greek == Greek.Eta:
             return '!'
-        return self.greek + str(self.timestamp)
+        return str(self.greek) + str(self.timestamp)
 
     def __eq__(self, value: object) -> bool:
         if isinstance(value, TypeVar):
@@ -85,16 +86,6 @@ class TypeVar(Type):
 
     def instantiate(self, free: dict[TypeVar, TypeVar]) -> Type:
         return free.get(self, self)
-
-
-Alpha = 'α'
-Beta = 'β'
-Gamma = 'γ'
-Delta = 'δ'
-Epsilon = 'ε'
-Pi = 'π'
-Tau = 'τ'
-Eta = 'η'
 
 
 @dataclass
@@ -185,7 +176,7 @@ class TypeScheme:
 
         ret = ''
         for item in self.free:
-            if item.greek != Eta:
+            if item.greek != Greek.Eta:
                 ret += '∀' + str(item)
         ret += '. ' + str(self.ty)
         return ret
@@ -298,22 +289,22 @@ def j(env: TypeEnv, expr: Expr) -> Type:
             else:
                 raise TyckException(f'变量或函数 {expr.x} 尚未定义')
         elif isinstance(expr, ExprAbs):
-            beta = TypeVar(Beta)
+            beta = TypeVar(Greek.Beta)
             env1 = TypeEnv(env)
             env1.vars[expr.x] = TypeScheme([], beta)
             env1.non_generic_type_vars.add(beta)
-            env1.return_ty = TypeVar(Eta)
+            env1.return_ty = TypeVar(Greek.Eta)
             t1 = j(env1, expr.body)
             unify(env1.return_ty, t1)
             return fn_type(beta, t1)
         elif isinstance(expr, ExprApp):
-            pi = TypeVar(Pi)
+            pi = TypeVar(Greek.Pi)
             t1 = j(env, expr.e1)
             t2 = j(env, expr.e2)
             unify(fn_type(t2, pi), t1)
             if pi.resolve is None:
-                eta = TypeVar(Eta)
-                pi.greek = Eta
+                eta = TypeVar(Greek.Eta)
+                pi.greek = Greek.Eta
                 pi.timestamp = eta.timestamp
             return pi
         elif isinstance(expr, ExprLet):
@@ -337,12 +328,12 @@ def j(env: TypeEnv, expr: Expr) -> Type:
             else:
                 t_ret = UnitType
             unify(return_ty, t_ret)
-            return TypeVar(Eta)
+            return TypeVar(Greek.Eta)
         elif isinstance(expr, ExprLetRec):
             env1 = TypeEnv(env)
             type_vars = []
             for (name, _) in expr.decls:
-                tvar = TypeVar(Gamma)
+                tvar = TypeVar(Greek.Gamma)
                 type_vars.append(tvar)
                 env1.vars[name] = TypeScheme([], tvar)
                 env1.non_generic_type_vars.add(tvar)
